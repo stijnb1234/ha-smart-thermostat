@@ -1,7 +1,7 @@
 """Thin HA glue: a read-only climate entity per Room showing engine target and current temperature.
 
 Targets come from the schedule, Boost, Away and Vacation, so they are changed
-through those (and the options flow), not by setting a temperature here.
+through those (and the options flow); setting a temperature here is refused with an explanation.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.const import UnitOfTemperature
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -23,7 +24,9 @@ class RoomClimate(CoordinatorEntity, ClimateEntity):
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.HEAT]
     _attr_hvac_mode = HVACMode.HEAT
-    _attr_supported_features = ClimateEntityFeature(0)
+    # HA only exposes the `temperature` attribute (shown as "wanted temperature") when this
+    # feature is set. Setting it is refused below: the target is decided by the engine.
+    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
 
     def __init__(self, coordinator, entry_id: str, room: str) -> None:
         super().__init__(coordinator)
@@ -41,6 +44,15 @@ class RoomClimate(CoordinatorEntity, ClimateEntity):
     def target_temperature(self) -> float | None:
         data = self.coordinator.data
         return data.decision.trv_setpoints.get(self._room) if data else None
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        raise ServiceValidationError(
+            "This target is set by Smart Heating (schedule, Boost, Away, Vacation). "
+            "Use Boost, or edit the room's temperatures under Configure."
+        )
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        return None
 
     @property
     def hvac_action(self) -> HVACAction | None:
