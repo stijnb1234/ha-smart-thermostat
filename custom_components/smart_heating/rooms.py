@@ -1,16 +1,22 @@
 """Pure mapping between stored Room config (config entry options) and the engine.
 
 No Home Assistant imports. A stored room is a JSON-serialisable dict:
-  name, trv_entity, [sensor_entity], [comfort], [setback], [frost_hold],
+  name, [trv_entity], [manual], [sensor_entity], [comfort], [setback], [frost_hold],
+  [trv_offset], [lead_time_minutes], [window_detection], [window_drop],
+  [window_pause_minutes],
   [schedule: list of {days: [0..6], start: "HH:MM", end: "HH:MM"}]
+A `manual` Room has no Zigbee TRV (floor heating, dumb TRV): the engine does not
+control it; it only matters through the Manual-room override.
 """
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import time, timedelta
 from typing import Any, Mapping, Sequence
 
 from .engine import (
+    DEFAULT_LIVING_AREA_SCHEDULE,
+    DEFAULT_WORK_SCHEDULE,
     DEFAULT_COMFORT,
     DEFAULT_FROST_HOLD,
     DEFAULT_SETBACK,
@@ -23,6 +29,16 @@ MIN_TEMP = 5.0
 MAX_TEMP = 30.0
 MIN_FROST_HOLD = 5.0
 
+NUMERIC_LIMITS = (
+    ("trv_offset", -5.0, 5.0),
+    ("lead_time_minutes", 0.0, 480.0),
+    ("window_drop", 0.5, 10.0),
+    ("window_pause_minutes", 15.0, 30.0),
+)
+
+PRESETS = ("none", "living_area", "working_room", "bedroom")
+DEFAULT_PRE_BED = ("21:30", "22:30")
+
 DAY_NAMES = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 
@@ -32,7 +48,7 @@ class RoomError(ValueError):
 
 def _parse_time(text: str) -> time:
     try:
-        hh, mm = text.strip().split(":")
+        hh, mm, *_seconds = text.strip().split(":")  # HH:MM or HH:MM:SS (time selector)
         return time(int(hh), int(mm))
     except (ValueError, TypeError) as err:
         raise RoomError(f"invalid time {text!r}") from err
@@ -92,11 +108,52 @@ def format_schedule(windows: Sequence[Mapping[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _window_dict(window: ScheduleWindow) -> dict[str, Any]:
+    return {
+        "days": sorted(window.days),
+        "start": window.start.strftime("%H:%M"),
+        "end": window.end.strftime("%H:%M"),
+    }
+
+
+def preset_schedule(
+    preset: str, pre_bed: tuple[str, str] = DEFAULT_PRE_BED
+) -> list[dict[str, Any]]:
+    """Default comfort windows (spec): living area, working room, bedroom (work hours + pre-bed)."""
+    if preset == "living_area":
+        return [_window_dict(w) for w in DEFAULT_LIVING_AREA_SCHEDULE]
+    if preset == "working_room":
+        return [_window_dict(w) for w in DEFAULT_WORK_SCHEDULE]
+    if preset == "bedroom":
+        start, end = pre_bed
+        pre_bed_window = {
+            "days": list(range(7)),
+            "start": _parse_time(start).strftime("%H:%M"),
+            "end": _parse_time(end).strftime("%H:%M"),
+        }
+        return [*(_window_dict(w) for w in DEFAULT_WORK_SCHEDULE), pre_bed_window]
+    return []
+
+
+def room_from_form(
+    user_input: Mapping[str, Any], pre_bed: tuple[str, str] = DEFAULT_PRE_BED
+) -> dict[str, Any]:
+    """Stored Room from room-form input. A blank schedule text takes the chosen preset."""
+    skip = ("schedule_text", "preset")
+    room = {k: v for k, v in user_input.items() if k not in skip and v not in (None, "")}
+    text = user_input.get("schedule_text") or ""
+    if text.strip():
+        room["schedule"] = parse_schedule(text)
+    else:
+        room["schedule"] = preset_schedule(user_input.get("preset") or "none", pre_bed)
+    return room
+
+
 def validate_room(room: Mapping[str, Any]) -> None:
     if not str(room.get("name", "")).strip():
         raise RoomError("name is required")
-    if not str(room.get("trv_entity", "")).strip():
-        raise RoomError("trv entity is required")
+    if not room.get("manual") and not str(room.get("trv_entity", "")).strip():
+        raise RoomError("trv entity is required (or mark the room as manual)")
     comfort = float(room.get("comfort", DEFAULT_COMFORT))
     setback = float(room.get("setback", DEFAULT_SETBACK))
     frost = float(room.get("frost_hold", DEFAULT_FROST_HOLD))
@@ -109,12 +166,16 @@ def validate_room(room: Mapping[str, Any]) -> None:
     for w in room.get("schedule", ()):
         _parse_time(w["start"])
         _parse_time(w["end"])
+    for key, low, high in NUMERIC_LIMITS:
+        if key in room and not (low <= float(room[key]) <= high):
+            raise RoomError(f"{key} must be {low}-{high}")
 
 
 def _check_unique(others: Sequence[Mapping[str, Any]], room: Mapping[str, Any]) -> None:
     if any(o["name"] == room["name"] for o in others):
         raise RoomError("a room with that name already exists")
-    if any(o["trv_entity"] == room["trv_entity"] for o in others):
+    trv = room.get("trv_entity")
+    if trv and any(o.get("trv_entity") == trv for o in others):
         raise RoomError("that trv entity is already used by another room")
 
 
@@ -141,12 +202,23 @@ def remove_room(rooms: Sequence[Mapping[str, Any]], name: str) -> list[dict[str,
 
 
 def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...]:
+    """Engine Rooms; `manual` Rooms (no TRV) are not controlled and so are left out."""
+    defaults = RoomConfig(name="")
     return tuple(
         RoomConfig(
             name=r["name"],
             comfort=float(r.get("comfort", DEFAULT_COMFORT)),
             setback=float(r.get("setback", DEFAULT_SETBACK)),
             frost_hold=float(r.get("frost_hold", DEFAULT_FROST_HOLD)),
+            trv_offset=float(r.get("trv_offset", defaults.trv_offset)),
+            lead_time=timedelta(minutes=float(r["lead_time_minutes"]))
+            if "lead_time_minutes" in r
+            else defaults.lead_time,
+            window_detection=bool(r.get("window_detection", defaults.window_detection)),
+            window_drop=float(r.get("window_drop", defaults.window_drop)),
+            window_pause=timedelta(minutes=float(r["window_pause_minutes"]))
+            if "window_pause_minutes" in r
+            else defaults.window_pause,
             schedule=tuple(
                 ScheduleWindow(
                     frozenset(w["days"]), _parse_time(w["start"]), _parse_time(w["end"])
@@ -155,11 +227,12 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
             ),
         )
         for r in rooms
+        if not r.get("manual")
     )
 
 
 def trv_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, str]:
-    return {r["name"]: r["trv_entity"] for r in rooms}
+    return {r["name"]: r["trv_entity"] for r in rooms if not r.get("manual") and r.get("trv_entity")}
 
 
 def sensor_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, str]:

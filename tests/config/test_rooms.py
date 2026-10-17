@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import time, timedelta
 
 import pytest
 
@@ -8,7 +8,9 @@ from custom_components.smart_heating.rooms import (
     add_room,
     format_schedule,
     parse_schedule,
+    preset_schedule,
     remove_room,
+    room_from_form,
     replace_room,
     sensor_entities,
     to_engine_rooms,
@@ -125,3 +127,77 @@ def test_remove_room():
     assert [r["name"] for r in remove_room(rooms, "Living")] == ["Bed"]
     with pytest.raises(RoomError):
         remove_room(rooms, "Nope")
+
+
+def test_manual_room_needs_no_trv_and_is_not_controlled_by_the_engine():
+    manual = {"name": "Bathroom", "manual": True}
+    rooms = add_room([raw()], manual)
+
+    assert [r.name for r in to_engine_rooms(rooms)] == ["Living"]
+    assert trv_entities(rooms) == {"Living": "climate.living_trv"}
+    add_room(rooms, {"name": "Floor", "manual": True})  # several TRV-less rooms are fine
+
+
+def test_non_manual_room_still_requires_trv():
+    with pytest.raises(RoomError):
+        add_room([], {"name": "Bed"})
+
+
+def test_engine_room_keeps_calibration_lead_time_and_window_settings():
+    [room] = to_engine_rooms(
+        [raw(trv_offset=-1.5, lead_time_minutes=90, window_detection=False, window_drop=2.0, window_pause_minutes=25)]
+    )
+
+    assert room.trv_offset == -1.5
+    assert room.lead_time == timedelta(minutes=90)
+    assert room.window_detection is False
+    assert room.window_drop == 2.0
+    assert room.window_pause == timedelta(minutes=25)
+
+
+def test_engine_room_defaults_for_new_fields_match_engine_defaults():
+    [room] = to_engine_rooms([raw()])
+
+    assert room == RoomConfig(name="Living")
+
+
+def test_presets_give_the_spec_default_schedules():
+    living = preset_schedule("living_area")
+    assert living == [{"days": [0, 1, 2, 3, 4, 5, 6], "start": "06:00", "end": "23:00"}]
+    work = preset_schedule("working_room")
+    assert work == [{"days": [0, 2, 4], "start": "08:00", "end": "17:00"}]
+
+
+def test_bedroom_preset_is_work_hours_plus_configurable_pre_bed_warmup():
+    assert preset_schedule("bedroom") == [
+        {"days": [0, 2, 4], "start": "08:00", "end": "17:00"},
+        {"days": [0, 1, 2, 3, 4, 5, 6], "start": "21:30", "end": "22:30"},
+    ]
+    custom = preset_schedule("bedroom", pre_bed=("21:00", "22:00"))
+    assert custom[1]["start"] == "21:00" and custom[1]["end"] == "22:00"
+
+
+def test_form_input_without_schedule_text_uses_the_chosen_preset():
+    room = room_from_form({"name": "Work", "trv_entity": "climate.w", "preset": "working_room", "schedule_text": ""})
+
+    assert room["schedule"] == preset_schedule("working_room")
+    assert "preset" not in room and "schedule_text" not in room
+
+
+def test_form_schedule_text_wins_over_preset():
+    room = room_from_form(
+        {"name": "W", "trv_entity": "climate.w", "preset": "bedroom", "schedule_text": "mon 09:00-10:00"}
+    )
+
+    assert room["schedule"] == [{"days": [0], "start": "09:00", "end": "10:00"}]
+
+
+def test_form_without_preset_or_text_has_empty_schedule_and_keeps_false_flags():
+    room = room_from_form({"name": "W", "trv_entity": "climate.w", "window_detection": False, "sensor_entity": ""})
+
+    assert room["schedule"] == []
+    assert room["window_detection"] is False and "sensor_entity" not in room
+
+
+def test_form_time_with_seconds_is_accepted():
+    assert parse_schedule("daily 21:30:00-22:30:00")[0]["start"] == "21:30"
