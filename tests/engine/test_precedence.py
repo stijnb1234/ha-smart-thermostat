@@ -63,3 +63,30 @@ def test_boost_beats_window_pause_beats_vacation_and_away_beats_schedule(clock):
     away_only = run(anyone_home=True)
     assert away_only.trv_setpoints["steady"] == 20.0  # schedule when nobody overrides
     assert away_only.reasons["steady"] == "schedule"
+
+
+def test_floor_preheat_keeps_idle_radiators_shut_and_calls_boiler(clock):
+    from datetime import time
+
+    from custom_components.smart_heating.engine import (
+        Commands, EngineConfig, EngineInput, RoomConfig, ScheduleWindow, SensorReading, decide,
+    )
+
+    clock.advance(hours=4)  # 07:00, two hours before the 09:00 window
+    window = (ScheduleWindow(frozenset(range(7)), time(9), time(22)),)
+    floor = RoomConfig(
+        name="bath", floor_heating=True, schedule=window, lead_time=__import__("datetime").timedelta(hours=3)
+    )
+    other = RoomConfig(name="hall")  # no schedule: setback
+    inp = EngineInput(
+        config=EngineConfig(rooms=(floor, other), easycontrol_low=10.0, easycontrol_high=22.0),
+        now=clock.now(), anyone_home=True, learned={}, last_commands=Commands(),
+        external_temps={"bath": SensorReading(17.0, clock.now())},
+        trv_temps={"hall": SensorReading(15.5, clock.now())},
+    )
+    d = decide(inp)
+    assert d.reasons["bath"] == "pre_heat" and d.demand_rooms == ("bath",)
+    assert (d.trv_setpoints["hall"], d.reasons["hall"]) == (12.0, "floor_first")
+    assert d.external_temp_pushes == {}  # floor room has no TRV to push to
+    warm = decide(__import__("dataclasses").replace(inp, external_temps={"bath": SensorReading(19.4, clock.now())}))
+    assert warm.reasons["hall"] == "setback"

@@ -113,11 +113,16 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         external: dict[str, SensorReading] = {}
         trv: dict[str, SensorReading] = {}
         battery: dict[str, bool] = {}
-        for room, trv_entity in self._shared["trv_entities"].items():
+        trv_by_room = self._shared["trv_entities"]
+        # Floor-heating rooms have a sensor but no TRV.
+        for room in [*trv_by_room, *(r for r in self._shared["sensor_entities"] if r not in trv_by_room)]:
+            trv_entity = trv_by_room.get(room)
             if (r := self._reading(self._shared["sensor_entities"].get(room))) is not None:
                 self._last_external[room] = r
             if room in self._last_external:
                 external[room] = self._last_external[room]
+            if trv_entity is None:
+                continue
             if (r := self._reading(trv_entity, "current_temperature")) is not None:
                 trv[room] = r
             state = self.hass.states.get(trv_entity)

@@ -54,6 +54,7 @@
         "data": {
           "name": "Room name",
           "manual": "No Zigbee TRV (floor heating or dumb TRV; only used by the Manual-room override)",
+          "floor_heating": "Floor heating (no TRV; needs a temperature sensor; warms up very early and keeps idle radiators shut meanwhile)",
           "trv_entity": "TRV (climate entity; not needed for a manual room)",
           "sensor_entity": "External temperature sensor (optional)",
           "presence_entities": "Who is this room for? (optional; no scheduled heating while all of them are away)",
@@ -82,6 +83,7 @@
         "data": {
           "name": "Room name",
           "manual": "No Zigbee TRV (floor heating or dumb TRV; only used by the Manual-room override)",
+          "floor_heating": "Floor heating (no TRV; needs a temperature sensor; warms up very early and keeps idle radiators shut meanwhile)",
           "trv_entity": "TRV (climate entity; not needed for a manual room)",
           "sensor_entity": "External temperature sensor (optional)",
           "presence_entities": "Who is this room for? (optional; no scheduled heating while all of them are away)",

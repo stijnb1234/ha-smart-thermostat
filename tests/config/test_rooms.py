@@ -222,3 +222,16 @@ def test_arrival_signal_cancels_absence():
     pres = {"Work": ("person.a",)}
     assert absent_rooms(pres, {"person.a": False}, arr, {"person.a_near": False}) == {"Work"}
     assert absent_rooms(pres, {"person.a": False}, arr, {"person.a_near": True}) == frozenset()
+
+
+def test_floor_heating_room_needs_sensor_not_trv_and_gets_long_default_lead():
+    import pytest
+
+    from custom_components.smart_heating.rooms import RoomError, room_from_form, to_engine_rooms, validate_room
+
+    with pytest.raises(RoomError):
+        validate_room({"name": "Bath", "floor_heating": True})
+    room = room_from_form({"name": "Bath", "floor_heating": True, "sensor_entity": "sensor.t", "lead_time_minutes": 70})
+    validate_room(room)
+    (engine_room,) = to_engine_rooms([room])
+    assert engine_room.floor_heating and engine_room.lead_time.total_seconds() == 3 * 3600

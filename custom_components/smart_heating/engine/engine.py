@@ -75,6 +75,32 @@ def _target(
     return room.setback, "setback"
 
 
+def _floor_first(
+    inp: EngineInput,
+    trv_setpoints: dict[str, float],
+    reasons: dict[str, Reason],
+    room_temps: Mapping[str, float],
+) -> None:
+    """While a floor-heating room pre-heats and is still cold, rooms that need no warmth stay shut.
+
+    The floor loops are always open, so radiators at setback would compete for the flow;
+    they drop to frost-hold until the floor has caught up.
+    """
+    busy = any(
+        room.floor_heating
+        and reasons[room.name] == "pre_heat"
+        and room.name in room_temps
+        and room_temps[room.name] < trv_setpoints[room.name] - inp.config.demand_hysteresis
+        for room in inp.config.rooms
+    )
+    if not busy:
+        return
+    for room in inp.config.rooms:
+        if not room.floor_heating and reasons[room.name] in ("setback", "away", "occupant_away"):
+            trv_setpoints[room.name] = room.frost_hold
+            reasons[room.name] = "floor_first"
+
+
 def decide(inp: EngineInput) -> Decision:
     """Return desired TRV setpoints with reasons, EasyControl setpoint and alerts.
 
@@ -92,7 +118,7 @@ def decide(inp: EngineInput) -> Decision:
         if temp is None:
             continue
         room_temps[room.name] = temp
-        if external and _needs_push(room.name, temp, inp):
+        if external and not room.floor_heating and _needs_push(room.name, temp, inp):
             pushes[room.name] = temp
     boosted = boosted_rooms(inp.boosts, inp.now)
     paused = {k: v for k, v in window_pauses(inp).items() if k not in boosted}
@@ -100,6 +126,7 @@ def decide(inp: EngineInput) -> Decision:
     reasons: dict[str, Reason] = {}
     for room in inp.config.rooms:
         trv_setpoints[room.name], reasons[room.name] = _target(room, inp, boosted, paused)
+    _floor_first(inp, trv_setpoints, reasons, room_temps)
     trv = check_trvs(inp, trv_setpoints)
     hand_set = {r: inp.trv_observed[r] for r in trv.manual if r in inp.trv_observed}
     for room_name in hand_set:

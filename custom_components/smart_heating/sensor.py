@@ -23,7 +23,7 @@ from .status import (
     status_text,
 )
 
-REASONS = ["boost", "window", "vacation", "away", "occupant_away", "manual", "pre_heat", "schedule", "setback"]
+REASONS = ["boost", "window", "vacation", "away", "occupant_away", "manual", "floor_first", "pre_heat", "schedule", "setback"]
 
 
 class _RoomSensor(CoordinatorEntity, SensorEntity):

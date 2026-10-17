@@ -1,7 +1,7 @@
 """Pure mapping between stored Room config (config entry options) and the engine.
 
 No Home Assistant imports. A stored room is a JSON-serialisable dict:
-  name, [trv_entity], [manual], [sensor_entity], [arrival_entities: same kinds, or a person in a zone; active = heading home, room warms early],
+  name, [trv_entity], [manual], [floor_heating: no TRV, needs sensor; long pre-heat], [sensor_entity], [arrival_entities: same kinds, or a person in a zone; active = heading home, room warms early],
   [presence_entities: person/tracker/switch ids; room is skipped by the
   schedule while all are away], [comfort], [setback], [frost_hold],
   [trv_offset], [lead_time_minutes], [window_detection], [window_drop],
@@ -17,6 +17,8 @@ from datetime import time, timedelta
 from typing import Any, Mapping, Sequence
 
 from .engine import (
+    DEFAULT_FLOOR_LEAD_TIME,
+    DEFAULT_LEAD_TIME,
     DEFAULT_LIVING_AREA_SCHEDULE,
     DEFAULT_WORK_SCHEDULE,
     DEFAULT_COMFORT,
@@ -143,6 +145,10 @@ def room_from_form(
     """Stored Room from room-form input. A blank schedule text takes the chosen preset."""
     skip = ("schedule_text", "preset")
     room = {k: v for k, v in user_input.items() if k not in skip and v not in (None, "")}
+    if room.get("floor_heating") and float(room.get("lead_time_minutes", 0)) == (
+        DEFAULT_LEAD_TIME.total_seconds() / 60
+    ):
+        del room["lead_time_minutes"]  # the form's untouched default: use the floor default instead
     text = user_input.get("schedule_text") or ""
     if text.strip():
         room["schedule"] = parse_schedule(text)
@@ -154,7 +160,10 @@ def room_from_form(
 def validate_room(room: Mapping[str, Any]) -> None:
     if not str(room.get("name", "")).strip():
         raise RoomError("name is required")
-    if not room.get("manual") and not str(room.get("trv_entity", "")).strip():
+    if room.get("floor_heating"):
+        if not str(room.get("sensor_entity", "")).strip():
+            raise RoomError("a floor heating room needs a temperature sensor")
+    elif not room.get("manual") and not str(room.get("trv_entity", "")).strip():
         raise RoomError("trv entity is required (or mark the room as manual)")
     comfort = float(room.get("comfort", DEFAULT_COMFORT))
     setback = float(room.get("setback", DEFAULT_SETBACK))
@@ -213,9 +222,10 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
             setback=float(r.get("setback", DEFAULT_SETBACK)),
             frost_hold=float(r.get("frost_hold", DEFAULT_FROST_HOLD)),
             trv_offset=float(r.get("trv_offset", defaults.trv_offset)),
+            floor_heating=bool(r.get("floor_heating")),
             lead_time=timedelta(minutes=float(r["lead_time_minutes"]))
             if "lead_time_minutes" in r
-            else defaults.lead_time,
+            else (DEFAULT_FLOOR_LEAD_TIME if r.get("floor_heating") else defaults.lead_time),
             window_detection=bool(r.get("window_detection", defaults.window_detection)),
             window_drop=float(r.get("window_drop", defaults.window_drop)),
             window_pause=timedelta(minutes=float(r["window_pause_minutes"]))

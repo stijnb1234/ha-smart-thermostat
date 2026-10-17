@@ -47,6 +47,7 @@ it is doing. Alerts only appear when something needs your attention.
 | Window seems open, heating paused until 14:20 | The room cooled down very fast, so a window is probably open. Heating is paused for a little while. |
 | Nobody home, kept at 16 degrees | Nobody is home, so the room is kept a bit cooler. After a long absence it is only kept just above freezing. |
 | Room's person is away, kept at 16 degrees | The person this room is for is away, so the schedule is skipped. The room warms up again when they are back or on their way. |
+| Waiting for the floor heating to warm up first, kept at 12 degrees | A floor-heating room (slow to warm) is warming up for its schedule. Radiators in rooms that don't need warmth stay closed meanwhile, so the heat goes to the floor. |
 | Set by hand to 22 degrees, until 17:00 | You turned the radiator valve yourself. It is left alone until the room's target changes, and the boiler is called if the room is colder than what you set. |
 | Vacation until Mon 00:00, kept at 12 degrees | Vacation mode is on. The room is only kept just above freezing. The house warms up again before the day you come back. |
 

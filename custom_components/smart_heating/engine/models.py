@@ -17,6 +17,8 @@ DEFAULT_SETBACK = 16.0
 DEFAULT_FROST_HOLD = 12.0
 
 DEFAULT_LEAD_TIME = timedelta(minutes=70)
+# Floor heating responds slowly: warm up well ahead until the learner knows better.
+DEFAULT_FLOOR_LEAD_TIME = timedelta(hours=3)
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,8 @@ class RoomConfig:
     schedule: tuple[ScheduleWindow, ...] = ()
     # Fixed pre-heat lead time: 60 min + 10 min burner latency (phase0 findings).
     lead_time: timedelta = DEFAULT_LEAD_TIME
+    # No TRV: heated by always-open floor loops, so it only calls the boiler (long pre-heat).
+    floor_heating: bool = False
     trv_offset: float = 0.0  # added to the TRV sensor reading when no external sensor is used
     # Open-window detection: pause when temperature falls >= window_drop degC within
     # window_period; hold frost-hold for window_pause (clamped to 15-30 min).
@@ -173,7 +177,7 @@ class EngineInput:
 
 
 Reason = Literal[
-    "boost", "window", "vacation", "away", "occupant_away", "manual", "pre_heat", "schedule", "setback"
+    "boost", "window", "vacation", "away", "occupant_away", "manual", "floor_first", "pre_heat", "schedule", "setback"
 ]
 
 
