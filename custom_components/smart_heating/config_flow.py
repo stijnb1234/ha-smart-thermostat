@@ -112,11 +112,11 @@ def _temp(default: float) -> tuple[Any, Any]:
 
 
 def _number(min_: float, max_: float, step: float, unit: str | None = None) -> Any:
-    return selector.NumberSelector(
-        selector.NumberSelectorConfig(
-            min=min_, max=max_, step=step, unit_of_measurement=unit, mode="box"
-        )
-    )
+    # NumberSelectorConfig rejects an explicit unit_of_measurement=None, so only pass it when set.
+    config: dict[str, Any] = {"min": min_, "max": max_, "step": step, "mode": "box"}
+    if unit is not None:
+        config["unit_of_measurement"] = unit
+    return selector.NumberSelector(selector.NumberSelectorConfig(**config))
 
 
 def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> vol.Schema:
