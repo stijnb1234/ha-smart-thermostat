@@ -41,12 +41,14 @@ def test_slug_and_entity_ids():
     assert entity_id("switch", None, "vacation_mode") == "switch.smart_heating_vacation_mode"
 
 
-def test_views_are_overview_rooms_help():
-    assert [v["path"] for v in build_dashboard(ROOMS)["views"]] == ["overview", "rooms", "help"]
+def test_views_are_overview_heating_boiler_help():
+    assert [v["path"] for v in build_dashboard(ROOMS)["views"]] == [
+        "overview", "heating", "boiler", "help"
+    ]
 
 
 def test_rooms_view_has_one_section_per_room_with_entities_and_graph():
-    rooms_view = view(build_dashboard(ROOMS), "rooms")
+    rooms_view = view(build_dashboard(ROOMS), "heating")
     assert len(rooms_view["sections"]) == len(ROOMS)
     for room, section in zip(NAMES, rooms_view["sections"]):
         ents = set(all_entities(section))
@@ -65,7 +67,7 @@ def test_rooms_view_has_one_section_per_room_with_entities_and_graph():
 
 
 def test_trv_technical_entities_derived_from_trv_entity():
-    section = view(build_dashboard(ROOMS), "rooms")["sections"][1]
+    section = view(build_dashboard(ROOMS), "heating")["sections"][1]
     ents = set(all_entities(section))
     assert {
         "sensor.trv_work_battery",
@@ -81,9 +83,8 @@ def test_room_without_trv_has_no_technical_card_and_names_still_work():
     assert not any("battery" in e for e in ents)
 
 
-def test_overview_has_status_boiler_alerts_controls():
-    ov = view(build_dashboard(ROOMS), "overview")
-    ents = set(all_entities(ov))
+def test_boiler_view_has_details_and_history():
+    ents = set(all_entities(view(build_dashboard(ROOMS), "boiler")))
     assert {
         "binary_sensor.smart_heating_boiler_call",
         "sensor.smart_heating_boiler_demand_rooms",
@@ -92,7 +93,14 @@ def test_overview_has_status_boiler_alerts_controls():
         "sensor.smart_heating_boiler_write_result",
         "sensor.smart_heating_boiler_backoff",
     } <= ents
+
+
+def test_overview_has_status_rooms_alerts_controls_but_no_technical_boiler_details():
+    ov = view(build_dashboard(ROOMS), "overview")
     text = str(ov)
+    assert "boiler_write_result" not in text and "boiler_backoff" not in text
+    for room in NAMES:
+        assert entity_id("climate", room) in text and entity_id("sensor", room, "summary") in text
     assert "sensor.smart_heating_status" in text
     assert "sensor.smart_heating_active_alerts" in text
 
@@ -125,6 +133,15 @@ def test_only_standard_cards():
     assert set(types(build_dashboard(ROOMS))) <= allowed
 
 
+def test_overview_keeps_controls():
+    ents = set(all_entities(view(build_dashboard(ROOMS), "overview")))
+    assert {
+        "switch.smart_heating_vacation_mode",
+        "number.smart_heating_vacation_days",
+        "button.smart_heating_manual_room_override",
+    } <= ents
+
+
 def test_dashboard_has_vacation_manual_override_and_options_link():
     d = build_dashboard(ROOMS)
     ents = set(all_entities(d))
@@ -149,11 +166,16 @@ def test_yaml_rendering():
     )
 
 
-def test_dashboard_explains_every_reason():
+def test_help_explains_every_sentence_the_rooms_can_show():
+    from datetime import datetime, timezone
     from typing import get_args
 
     from custom_components.smart_heating.engine.models import Reason
+    from custom_components.smart_heating.explain import Explanation, summarize
 
-    text = str(build_dashboard(ROOMS))
+    help_text = str(view(build_dashboard(ROOMS), "help"))
+    now = datetime(2026, 1, 12, 10, 0, tzinfo=timezone.utc)
     for reason in get_args(Reason):
-        assert f"| {reason} |" in text
+        sentence = summarize(Explanation(reason, 16.0, now, 19.5), now)
+        stem = sentence.split("10:00")[0].split("16 degrees")[0].strip(" ,")
+        assert stem.split(" until")[0].split(" from")[0] in help_text, sentence

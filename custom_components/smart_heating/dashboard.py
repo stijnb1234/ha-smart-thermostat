@@ -31,28 +31,44 @@ def entity_id(domain: str, room: str | None, key: str | None = None) -> str:
 
 
 HELP_CONTENT = """\
-Each room has a target temperature, and its card says in a sentence what the room is doing.
-Behind that sentence is one of these reasons (the rules at the top win over the ones below):
+## The overview
+The top line says which rooms are heating and whether the boiler is on. Below it, every room
+shows its temperature now, the temperature it is aiming for, and a short sentence about what
+it is doing. Alerts only appear when something needs your attention.
 
-| Reason | What it means |
+## What the sentence in a room means
+| You see | What it means |
 |---|---|
-| boost | You pressed Boost. The room is heated to its normal warm temperature until the boost runs out or you cancel it. |
-| window | The room cooled down very fast, so a window is probably open. Heating is paused for a little while. |
-| vacation | Vacation mode is on. The room is only kept just above freezing. |
-| away | Nobody is home. The room is kept a bit cooler than normal. After a long absence it is only kept just above freezing. |
-| occupant_away | The person this room is for is away, so the schedule is skipped and the room stays at its lower temperature. It warms up again once they are back (it can take a while, as there is no early warm-up). |
-| pre_heat | The room is heating up early so it is already warm when its schedule starts. |
-| schedule | The room is in a scheduled warm period, so it is heated to its normal warm temperature. |
-| setback | Nobody needs this room warm now, so it stays at its lower temperature. |
+| Warm until 17:00 | The room is in a scheduled warm period and is heated to its normal warm temperature. |
+| Warm from 08:00 | The room is at its lower temperature now and warms up for its next scheduled period. |
+| Kept at 16 degrees | The room stays at its lower temperature, nothing is scheduled. |
+| Warming up, warm until 17:00 | The room started heating early so it is already warm when its schedule begins. |
+| Boost until 14:00 | You pressed Boost. The room is heated to its warm temperature until then or until you cancel it. |
+| Window seems open, heating paused until 14:20 | The room cooled down very fast, so a window is probably open. Heating is paused for a little while. |
+| Nobody home, kept at 16 degrees | Nobody is home, so the room is kept a bit cooler. After a long absence it is only kept just above freezing. |
+| Room's person is away, kept at 16 degrees | The person this room is for is away, so the schedule is skipped. The room warms up again when they are back or on their way. |
+| Vacation until Mon 00:00, kept at 12 degrees | Vacation mode is on. The room is only kept just above freezing. The house warms up again before the day you come back. |
 
-**Next change** shows when the target changes next, and to what temperature.
-**Pre-heat lead time** is how long before a schedule the room starts warming up. It starts as a fixed guess and improves as the system learns how fast each room heats.
+When two rules apply, the stronger one wins: Boost, then an open window, then Vacation, then
+nobody home, then the schedule.
 
-**When does the boiler turn on?** Only when at least one room that should be warm is clearly colder than it should be. When no room needs heat, the boiler is allowed to rest.
+## The Heating page
+- **Right now / Next change**: what the room is doing and when that changes next, with the temperature it changes to.
+- **Pre-heat lead time**: how long before a schedule the room starts warming up. It starts as a fixed guess and improves as the system learns how fast each room heats.
+- **Boost / Cancel boost**: warm this room now for a set time, or stop that early.
+- **Radiator valve**: battery and valve details, useful when a room misbehaves.
 
-**Changed something by hand?** A radiator you turn by hand is left alone until that room's target next changes. A change on the EasyControl is respected for about two hours.
+## The Boiler page
+- **Boiler is being called**: the boiler is told to heat. This only happens when at least one room that should be warm is clearly colder than it should be. Otherwise the boiler rests.
+- **Rooms asking for heat**: which rooms caused the call.
+- **Target we set on the EasyControl**: the temperature last sent to the thermostat that controls the boiler.
+- **Last sent / Result of last send**: when we last told the EasyControl something, and whether it worked.
+- **Paused after an error**: after an error the system waits a few minutes before trying again, so the Bosch cloud is not flooded.
+- **Manual change on the EasyControl**: you changed the EasyControl yourself. That is respected for about two hours and the system does not overwrite it.
+- **Manual room override**: for rooms where you turn the radiator on by hand. It tells the boiler to heat for a set time, since the system can't see that room. Use its cancel button to stop it early.
 
-**Manual room override** is for rooms where you turn the radiator on by hand. It tells the boiler to heat for a set time, since the system can't see that room. Use its cancel button to stop it early.
+## Changed something by hand?
+A radiator you turn by hand is left alone until that room's target next changes.
 """
 
 
@@ -116,7 +132,7 @@ def _room_section(room: Mapping[str, Any]) -> dict[str, Any]:
         cards.append(
             {
                 "type": "entities",
-                "title": "Radiator valve (technical)",
+                "title": "Radiator valve",
                 "entities": [
                     {"entity": battery_entity(trv), "name": "Battery"},
                     {"entity": valve_position_entity(trv), "name": "Valve opening"},
@@ -127,34 +143,30 @@ def _room_section(room: Mapping[str, Any]) -> dict[str, Any]:
     return _section(*cards)
 
 
+def _rooms_table(rooms: list[dict[str, Any]]) -> str:
+    """Markdown table, one row per room: temperature now, target, and the plain sentence."""
+
+    def temp(entity: str, attr: str) -> str:
+        value = f"state_attr('{entity}', '{attr}')"
+        return f"{{{{ '%.1f' | format({value}) + '°' if {value} is number else '–' }}}}"
+
+    lines = ["| Room | Now | Aiming for | |", "|---|---|---|---|"]
+    for r in rooms:
+        climate = entity_id("climate", r["name"])
+        summary = entity_id("sensor", r["name"], "summary")
+        lines.append(
+            f"| **{r['name']}** | {temp(climate, 'current_temperature')} "
+            f"| {temp(climate, 'temperature')} "
+            f"| {{{{ states('{summary}') if has_value('{summary}') else '' }}}} |"
+        )
+    return "\n".join(lines)
+
+
 def _overview_view(rooms: list[dict[str, Any]]) -> dict[str, Any]:
     now = _section(
         _heading("Right now", "mdi:home-thermometer"),
         {"type": "markdown", "content": HEADER_CONTENT},
-        {
-            "type": "grid",
-            "columns": 2,
-            "square": False,
-            "cards": [
-                {"type": "tile", "entity": entity_id("climate", r["name"]), "name": r["name"]}
-                for r in rooms
-            ],
-        },
-    )
-    boiler = _section(
-        _heading("Boiler", "mdi:water-boiler"),
-        {
-            "type": "entities",
-            "entities": [
-                {"entity": entity_id("binary_sensor", None, "boiler_call"), "name": "Boiler is being called"},
-                {"entity": entity_id("sensor", None, "boiler_demand_rooms"), "name": "Rooms asking for heat"},
-                {"entity": entity_id("sensor", None, "boiler_target"), "name": "Target we set on the EasyControl"},
-                {"entity": entity_id("sensor", None, "boiler_last_write"), "name": "Last sent to the EasyControl"},
-                {"entity": entity_id("sensor", None, "boiler_write_result"), "name": "Result of last send"},
-                {"entity": entity_id("sensor", None, "boiler_backoff"), "name": "Paused after an error"},
-                {"entity": entity_id("sensor", None, "boiler_manual_hold"), "name": "Manual change on the EasyControl"},
-            ],
-        },
+        {"type": "markdown", "content": _rooms_table(rooms)},
     )
     alerts = _section(
         {
@@ -194,25 +206,74 @@ def _overview_view(rooms: list[dict[str, Any]]) -> dict[str, Any]:
         "icon": "mdi:home-thermometer",
         "type": "sections",
         "max_columns": 2,
-        "sections": [now, alerts, boiler, controls],
+        "sections": [now, alerts, controls],
+    }
+
+
+def _heating_view(rooms: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "title": "Heating",
+        "path": "heating",
+        "icon": "mdi:radiator",
+        "type": "sections",
+        "max_columns": 2,
+        "sections": [_room_section(r) for r in rooms],
+    }
+
+
+def _boiler_view() -> dict[str, Any]:
+    call = entity_id("binary_sensor", None, "boiler_call")
+    target = entity_id("sensor", None, "boiler_target")
+    details = _section(
+        _heading("Boiler", "mdi:water-boiler"),
+        {
+            "type": "entities",
+            "entities": [
+                {"entity": call, "name": "Boiler is being called"},
+                {"entity": entity_id("sensor", None, "boiler_demand_rooms"), "name": "Rooms asking for heat"},
+                {"entity": target, "name": "Target we set on the EasyControl"},
+                {"entity": entity_id("sensor", None, "boiler_last_write"), "name": "Last sent to the EasyControl"},
+                {"entity": entity_id("sensor", None, "boiler_write_result"), "name": "Result of last send"},
+                {"entity": entity_id("sensor", None, "boiler_backoff"), "name": "Paused after an error"},
+                {"entity": entity_id("sensor", None, "boiler_manual_hold"), "name": "Manual change on the EasyControl"},
+            ],
+        },
+        {
+            "type": "entities",
+            "title": "Manual room override",
+            "entities": [
+                {"entity": entity_id("button", None, "manual_room_override")},
+                {"entity": entity_id("button", None, "cancel_manual_room_override")},
+            ],
+        },
+    )
+    history = _section(
+        _heading("Last 24 hours", "mdi:chart-line"),
+        {
+            "type": "history-graph",
+            "hours_to_show": 24,
+            "entities": [{"entity": call}, {"entity": target}],
+        },
+    )
+    return {
+        "title": "Boiler",
+        "path": "boiler",
+        "icon": "mdi:water-boiler",
+        "type": "sections",
+        "max_columns": 2,
+        "sections": [details, history],
     }
 
 
 def build_dashboard(rooms: Iterable[str | Mapping[str, Any]]) -> dict[str, Any]:
-    """Rooms are names or room dicts (name, optional trv_entity for the technical card)."""
+    """Rooms are names or room dicts (name, optional trv_entity for the valve card)."""
     room_list = [_normalize(r) for r in rooms]
     return {
         "title": "Smart Heating",
         "views": [
             _overview_view(room_list),
-            {
-                "title": "Rooms",
-                "path": "rooms",
-                "icon": "mdi:radiator",
-                "type": "sections",
-                "max_columns": 2,
-                "sections": [_room_section(r) for r in room_list],
-            },
+            _heating_view(room_list),
+            _boiler_view(),
             {
                 "title": "Help",
                 "path": "help",

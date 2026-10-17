@@ -71,7 +71,7 @@ Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, senso
 
 ## Dashboard
 
-On setup the integration writes `smart_heating_dashboard.yaml` into your Home Assistant config folder and registers it as a **Smart Heating** dashboard in the sidebar. Nothing to configure. Pages: **Overview** (status, boiler, alerts when there are any, controls), **Rooms** (one section per room with a 24 hour temperature graph and, secondary, the radiator valve's battery and valve opening, assumed to be `sensor.<name>_battery`, `number.<name>_valve_position`, `sensor.<name>_pi_heating_demand`) and **Help**. Schedules are edited through the integration's Configure dialog (linked from the dashboard).
+On setup the integration writes `smart_heating_dashboard.yaml` into your Home Assistant config folder and registers it as a **Smart Heating** dashboard in the sidebar. Nothing to configure. Pages: **Overview** (status, a table of all rooms, alerts when there are any, controls), **Heating** (one section per room with a 24 hour temperature graph and, secondary, the radiator valve's battery and valve opening, assumed to be `sensor.<name>_battery`, `number.<name>_valve_position`, `sensor.<name>_pi_heating_demand`) , **Boiler** (call status, last write, errors, manual room override) and **Help**. Schedules are edited through the integration's Configure dialog (linked from the dashboard).
 
 The registration uses Home Assistant internals, so if it ever fails (see the log) register the file by hand in `configuration.yaml`:
 
