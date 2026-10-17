@@ -93,6 +93,10 @@ Target precedence per room: **Boost > open-window pause > Vacation > Away > sche
 
 The Bosch cloud and Zigbee timing could not be measured, so defaults were assumed and are all configurable: debounce 5 min, max one write per 2 min, 429 backoff 5→30 min, setpoint re-asserted after 30 min of drift, default pre-heat lead time 70 min. Details and how to verify each in `docs/research/phase0-findings.md`. Probe scripts to measure them live are in `scripts/phase0/`.
 
+## License
+
+[MIT](LICENSE)
+
 ## Development
 
 ```bash
