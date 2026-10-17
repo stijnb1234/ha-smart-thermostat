@@ -26,7 +26,6 @@ def make_input(clock, temps=None, commands=None, last_write=None) -> EngineInput
         config=config,
         now=clock.now(),
         anyone_home=True,
-        room_temps={},
         trv_temps={
             name: SensorReading(value=value, at=clock.now())
             for name, value in (temps or {"bedroom": 17.0, "office": 17.0}).items()

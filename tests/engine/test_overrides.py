@@ -24,7 +24,6 @@ def make_input(clock, temps=None, **kw) -> EngineInput:
     return EngineInput(
         config=config,
         now=clock.now(),
-        room_temps={},
         trv_temps={n: SensorReading(v, clock.now()) for n, v in temps.items()},
         learned={},
         last_commands=Commands(),

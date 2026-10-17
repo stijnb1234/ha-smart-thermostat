@@ -17,6 +17,7 @@ MAX_SAMPLES = 50
 MIN_LEAD_TIME = timedelta(minutes=10)
 MAX_LEAD_TIME = timedelta(hours=4)
 _MIN_RATE = 1e-6
+_MIN_VARIANCE = 1e-9  # outdoor temps all equal: no slope to fit
 
 
 class LeadTimeLearner:
@@ -97,7 +98,7 @@ def _predict_rate(samples: deque[tuple[float, float]], outdoor: float) -> float:
     mean_x = sum(x for x, _ in samples) / n
     mean_y = sum(y for _, y in samples) / n
     sxx = sum((x - mean_x) ** 2 for x, _ in samples)
-    if sxx < 1e-9:
+    if sxx < _MIN_VARIANCE:
         return mean_y
     slope = sum((x - mean_x) * (y - mean_y) for x, y in samples) / sxx
     return mean_y + slope * (outdoor - mean_x)

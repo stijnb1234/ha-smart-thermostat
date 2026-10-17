@@ -97,7 +97,7 @@ class Controller:
         self._record_history(snap)
         rooms = self._config.rooms
         lead_times: dict[str, timedelta] = {}
-        learned: dict[str, object] = {}
+        learned: dict[str, timedelta] = {}
         if snap.outdoor_temp is not None:
             learned = self._learner.lead_times(
                 snap.outdoor_temp, {r.name: r.comfort - r.setback for r in rooms}
@@ -112,7 +112,6 @@ class Controller:
             config=self._config,
             now=snap.now,
             anyone_home=snap.anyone_home,
-            room_temps={},
             learned=learned,
             last_commands=self._commands,
             external_temps=snap.external,

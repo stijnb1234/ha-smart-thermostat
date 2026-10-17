@@ -5,7 +5,11 @@ from .engine import decide, lead_time_for
 from .presence import vacation_end
 from .models import (
     AlertConfig,
+    DEFAULT_COMFORT,
+    DEFAULT_FROST_HOLD,
     DEFAULT_LEAD_TIME,
+    DEFAULT_SETBACK,
+    EPSILON,
     DEFAULT_LIVING_AREA_SCHEDULE,
     DEFAULT_WORK_SCHEDULE,
     Alert,
@@ -25,7 +29,11 @@ from .overrides import Boost, ManualRoomOverride
 __all__ = [
     "Boost",
     "ManualRoomOverride",
+    "DEFAULT_COMFORT",
+    "DEFAULT_FROST_HOLD",
     "DEFAULT_LEAD_TIME",
+    "DEFAULT_SETBACK",
+    "EPSILON",
     "lead_time_for",
     "DEFAULT_LIVING_AREA_SCHEDULE",
     "DEFAULT_WORK_SCHEDULE",

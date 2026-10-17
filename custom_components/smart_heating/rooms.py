@@ -10,11 +10,14 @@ from __future__ import annotations
 from datetime import time
 from typing import Any, Mapping, Sequence
 
-from .engine import RoomConfig, ScheduleWindow
+from .engine import (
+    DEFAULT_COMFORT,
+    DEFAULT_FROST_HOLD,
+    DEFAULT_SETBACK,
+    RoomConfig,
+    ScheduleWindow,
+)
 
-DEFAULT_COMFORT = 19.5
-DEFAULT_SETBACK = 16.0
-DEFAULT_FROST_HOLD = 12.0
 
 MIN_TEMP = 5.0
 MAX_TEMP = 30.0

@@ -33,7 +33,6 @@ class Home:
                 config=self.config,
                 now=self.clock.now(),
                 anyone_home=True,
-                room_temps={},
                 learned={},
                 last_commands=self.commands,
                 trv_temps={"bedroom": self.history[-1]},

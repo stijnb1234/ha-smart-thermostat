@@ -21,7 +21,6 @@ def make_input(clock, **overrides) -> EngineInput:
         ),
         now=clock.now(),
         anyone_home=True,
-        room_temps={},
         learned={},
         last_commands=Commands(),
         trv_temps={"bedroom": SensorReading(17.0, clock.now())},

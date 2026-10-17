@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from .models import EngineInput, RoomConfig
+from .models import EPSILON, EngineInput, RoomConfig
 
 MIN_PAUSE = timedelta(minutes=15)
 MAX_PAUSE = timedelta(minutes=30)
@@ -16,7 +16,7 @@ def _fast_fall(room: RoomConfig, inp: EngineInput) -> bool:
     recent = [r.value for r in history if cutoff <= r.at <= inp.now]
     if len(recent) < 2:
         return False
-    return max(recent) - recent[-1] >= room.window_drop - 1e-9
+    return max(recent) - recent[-1] >= room.window_drop - EPSILON
 
 
 def window_pauses(inp: EngineInput) -> dict[str, datetime]:

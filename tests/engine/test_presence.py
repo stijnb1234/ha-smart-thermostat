@@ -26,7 +26,6 @@ def make_input(clock, **overrides) -> EngineInput:
         config=EngineConfig(rooms=(room,), easycontrol_low=10.0, easycontrol_high=22.0),
         now=clock.now(),
         anyone_home=True,
-        room_temps={},
         learned={},
         last_commands=Commands(),
     )

@@ -28,7 +28,6 @@ def run(now, temp=18.0, room=ROOM, **kw):
         config=EngineConfig(rooms=(room,), easycontrol_low=10, easycontrol_high=22),
         now=now,
         anyone_home=kw.pop("anyone_home", True),
-        room_temps={},
         trv_temps={room.name: SensorReading(temp, now)},
         learned={},
         last_commands=Commands(),

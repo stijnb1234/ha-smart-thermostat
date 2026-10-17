@@ -8,7 +8,15 @@ from typing import Literal, Mapping
 
 from .overrides import Boost, ManualRoomOverride
 
-DEFAULT_LEAD_TIME =timedelta(minutes=70)
+# Float comparison tolerance for thresholds.
+EPSILON = 1e-9
+
+# Default targets (spec: comfort 19.5, setback 16, frost-hold 12). The single place for them.
+DEFAULT_COMFORT = 19.5
+DEFAULT_SETBACK = 16.0
+DEFAULT_FROST_HOLD = 12.0
+
+DEFAULT_LEAD_TIME = timedelta(minutes=70)
 
 
 @dataclass(frozen=True)
@@ -26,9 +34,9 @@ class ScheduleWindow:
 @dataclass(frozen=True)
 class RoomConfig:
     name: str
-    comfort: float = 19.5
-    setback: float = 16.0
-    frost_hold: float = 12.0
+    comfort: float = DEFAULT_COMFORT
+    setback: float = DEFAULT_SETBACK
+    frost_hold: float = DEFAULT_FROST_HOLD
     schedule: tuple[ScheduleWindow, ...] = ()
     # Fixed pre-heat lead time: 60 min + 10 min burner latency (phase0 findings).
     lead_time: timedelta = DEFAULT_LEAD_TIME
@@ -114,8 +122,7 @@ class EngineInput:
     config: EngineConfig
     now: datetime
     anyone_home: bool
-    room_temps: Mapping[str, float]
-    learned: Mapping[str, object]
+    learned: Mapping[str, timedelta]
     last_commands: Commands
     external_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     trv_temps: Mapping[str, SensorReading] = field(default_factory=dict)

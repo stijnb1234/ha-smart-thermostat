@@ -35,7 +35,6 @@ def test_boost_beats_window_pause_beats_vacation_and_away_beats_schedule(clock):
             EngineInput(
                 config=config,
                 now=now,
-                room_temps={},
                 learned={},
                 last_commands=Commands(),
                 trv_temps={n: SensorReading(19.0, now) for n in ("boosted", "falling", "steady")},
