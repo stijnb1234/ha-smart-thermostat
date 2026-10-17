@@ -45,7 +45,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     shared = hass.data[DOMAIN][entry.entry_id]
     learner_store = LearnerStore(hass)
     learner = await learner_store.async_load()
-    coordinator = SmartHeatingCoordinator(hass, entry, shared, learner_store, learner)
+    from .commands_store import CommandsStore
+
+    commands_store = CommandsStore(hass)
+    restored = await commands_store.async_load([r["name"] for r in rooms])
+    coordinator = SmartHeatingCoordinator(
+        hass, entry, shared, learner_store, learner, commands_store, restored
+    )
     shared["coordinator"] = coordinator
     await hass.async_add_executor_job(
         _write_dashboard,

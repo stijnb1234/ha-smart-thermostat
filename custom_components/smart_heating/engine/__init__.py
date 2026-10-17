@@ -4,6 +4,7 @@ from .alerts import AlertChanges, AlertNotifier, track_unmet
 from .engine import decide, in_window, lead_time_for, wants_comfort
 from .sensors import select_temperature
 from .presence import vacation_end
+from .state import commands_from_dict, commands_to_dict
 from .models import (
     AlertConfig,
     DEFAULT_COMFORT,
@@ -33,6 +34,8 @@ from .overrides import (
 )
 
 __all__ = [
+    "commands_from_dict",
+    "commands_to_dict",
     "Boost",
     "ManualRoomOverride",
     "timed_requests_from_dict",

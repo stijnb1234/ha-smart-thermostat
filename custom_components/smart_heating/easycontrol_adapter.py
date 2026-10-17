@@ -6,6 +6,7 @@ reports the outcome as a WriteResult so the engine can apply backoff (ADR-0002).
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
@@ -15,6 +16,7 @@ from .engine import Commands, WriteResult
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
+_LOGGER = logging.getLogger(__name__)
 _RETRY_AFTER = re.compile(r"retry[- ]after\D{0,3}(\d+)", re.IGNORECASE)
 
 
@@ -37,6 +39,10 @@ class EasyControlAdapter:
         self._setpoint: float | None = None
         self._changed_at: datetime | None = None
         self._last_write: WriteResult | None = None
+
+    def restore(self, setpoint: float | None, changed_at: datetime | None) -> None:
+        """Resume the last setpoint we set before a restart, so a hand change is still noticed."""
+        self._setpoint, self._changed_at = setpoint, changed_at
 
     @property
     def commands(self) -> Commands:
@@ -75,6 +81,10 @@ class EasyControlAdapter:
             )
         except Exception as exc:  # noqa: BLE001 - cloud errors are not typed
             failed = classify_error(exc)
+            _LOGGER.warning(
+                "Setting EasyControl %s to %s failed (%s): %s",
+                self._entity_id, setpoint, failed.status, exc,
+            )
             previous = self._last_write.consecutive_failures if self._last_write else 0
             self._last_write = WriteResult(
                 at=now,
@@ -83,6 +93,7 @@ class EasyControlAdapter:
                 consecutive_failures=previous + 1,
             )
             return
+        _LOGGER.info("EasyControl %s set to %s (was %s)", self._entity_id, setpoint, self._setpoint)
         self._setpoint = setpoint
         self._changed_at = now
         self._last_write = WriteResult(at=now, status="ok")

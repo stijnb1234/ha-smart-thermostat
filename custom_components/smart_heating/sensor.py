@@ -23,7 +23,7 @@ from .status import (
     status_text,
 )
 
-REASONS = ["boost", "window", "vacation", "away", "occupant_away", "pre_heat", "schedule", "setback"]
+REASONS = ["boost", "window", "vacation", "away", "occupant_away", "manual", "pre_heat", "schedule", "setback"]
 
 
 class _RoomSensor(CoordinatorEntity, SensorEntity):
@@ -121,7 +121,9 @@ class StatusSensor(_SystemSensor):
     def _facts(self):
         data = self.coordinator.data
         inp, decision = data.inp, data.decision
-        heating = heating_rooms(inp.config, decision.trv_setpoints, decision.room_temps)
+        heating = heating_rooms(
+            inp.config, {**decision.trv_setpoints, **decision.hand_set}, decision.room_temps
+        )
         on = boiler_status(inp, decision).call_active
         vacation = inp.vacation_until is not None
         return heating, on, vacation, not inp.anyone_home

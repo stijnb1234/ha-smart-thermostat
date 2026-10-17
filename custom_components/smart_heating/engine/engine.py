@@ -100,12 +100,15 @@ def decide(inp: EngineInput) -> Decision:
     reasons: dict[str, Reason] = {}
     for room in inp.config.rooms:
         trv_setpoints[room.name], reasons[room.name] = _target(room, inp, boosted, paused)
-    calling = demand_rooms(inp.config, trv_setpoints, room_temps)
+    trv = check_trvs(inp, trv_setpoints)
+    hand_set = {r: inp.trv_observed[r] for r in trv.manual if r in inp.trv_observed}
+    for room_name in hand_set:
+        reasons[room_name] = "manual"
+    calling = demand_rooms(inp.config, trv_setpoints, room_temps, hand_set)
     demand = bool(calling) or manual_override_active(
         inp.manual_overrides, inp.now
     )
     ec_setpoint, reassert, ec_hold = easycontrol_setpoint(inp, demand)
-    trv = check_trvs(inp, trv_setpoints)
     return Decision(
         trv_setpoints=trv_setpoints,
         easycontrol_setpoint=ec_setpoint,
@@ -120,4 +123,5 @@ def decide(inp: EngineInput) -> Decision:
         external_temp_pushes=pushes,
         window_paused_until=paused,
         demand_rooms=calling,
+        hand_set=hand_set,
     )

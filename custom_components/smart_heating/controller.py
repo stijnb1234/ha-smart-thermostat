@@ -51,6 +51,7 @@ class Snapshot:
     easycontrol_observed: float | None = None
     trv_observed: Mapping[str, float] = field(default_factory=dict)
     absent_rooms: frozenset[str] = frozenset()
+    trv_off: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,14 @@ class Controller:
         self._commands = Commands()
         self._warmups = WarmupTracker()
         self.learner_dirty = False
+
+    @property
+    def commands(self) -> Commands:
+        return self._commands
+
+    def restore(self, commands: Commands) -> None:
+        """Resume bookkeeping saved before a restart (manual changes, holds, retries)."""
+        self._commands = commands
 
     def _record_history(self, snap: Snapshot) -> None:
         for room in self._config.rooms:
@@ -127,6 +136,7 @@ class Controller:
             manual_overrides=self._overrides,
             away_since=snap.away_since,
             absent_rooms=snap.absent_rooms,
+            trv_off=snap.trv_off,
             vacation_until=snap.vacation_until,
             temp_history=dict(self._history),
         )

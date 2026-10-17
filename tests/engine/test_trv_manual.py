@@ -120,3 +120,39 @@ def test_settle_is_configurable(clock):
     inp = replace(inp, config=replace(inp.config, trv_settle=timedelta(minutes=5)))
 
     assert decide(inp).trv_rewrite == frozenset({"office"})
+
+
+def test_hand_set_trv_calls_boiler_when_room_colder_than_hand_value(clock):
+    inp = make(clock, 22.0)  # hand-set above the 19.5 target, room at 19.0
+    d = decide(replace(inp, last_commands=replace(inp.last_commands, trv_manual={"office": TARGET})))
+    assert d.hand_set == {"office": 22.0}
+    assert d.reasons["office"] == "manual"
+    assert d.demand_rooms == ("office",)
+    assert d.easycontrol_setpoint == 22.0  # EasyControl high
+
+
+def test_hand_set_at_or_below_setback_does_not_call_boiler(clock):
+    inp = make(clock, 15.0, previous=OLD)
+    inp = replace(inp, last_commands=replace(inp.last_commands, trv_manual={"office": TARGET}))
+    d = decide(replace(inp, trv_temps={"office": SensorReading(12.0, clock.now())}))
+    assert d.hand_set == {"office": 15.0} and d.demand_rooms == ()
+
+
+def test_hand_set_in_warm_room_does_not_call_boiler(clock):
+    inp = make(clock, 21.0)
+    inp = replace(inp, last_commands=replace(inp.last_commands, trv_manual={"office": TARGET}))
+    d = decide(replace(inp, trv_temps={"office": SensorReading(21.0, clock.now())}))
+    assert d.demand_rooms == ()
+
+
+def test_trv_off_alert():
+    from custom_components.smart_heating.engine.alerts import compute_alerts
+
+    cfg = EngineConfig(rooms=(RoomConfig(name="office"),), easycontrol_low=10.0, easycontrol_high=22.0)
+    from datetime import datetime, timezone
+
+    inp = EngineInput(
+        config=cfg, now=datetime(2026, 1, 1, tzinfo=timezone.utc), anyone_home=True,
+        learned={}, last_commands=Commands(), trv_off=frozenset({"office"}),
+    )
+    assert [a.code for a in compute_alerts(inp)] == ["trv_off"]

@@ -43,7 +43,9 @@ class RoomClimate(CoordinatorEntity, ClimateEntity):
     @property
     def target_temperature(self) -> float | None:
         data = self.coordinator.data
-        return data.decision.trv_setpoints.get(self._room) if data else None
+        if not data:
+            return None
+        return data.decision.hand_set.get(self._room, data.decision.trv_setpoints.get(self._room))
 
     async def async_set_temperature(self, **kwargs) -> None:
         raise ServiceValidationError(

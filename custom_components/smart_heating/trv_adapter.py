@@ -9,13 +9,18 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Collection, Mapping
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
+
+
+MODE_FIX_MIN_INTERVAL = timedelta(minutes=2)
+MODE_FIX_MIN_ATTEMPTS = 3
+MODE_FIX_GIVE_UP_AFTER = timedelta(minutes=10)
 
 
 class TrvAdapter:
@@ -26,6 +31,61 @@ class TrvAdapter:
         self._written: dict[str, float] = {}
         self._written_at: dict[str, datetime] = {}
         self._previous: dict[str, float] = {}
+        self._off_since: dict[str, datetime] = {}
+        self._mode_attempts: dict[str, int] = {}
+        self._mode_attempt_at: dict[str, datetime] = {}
+
+    def restore(
+        self,
+        written: Mapping[str, float],
+        written_at: Mapping[str, datetime],
+        previous: Mapping[str, float],
+    ) -> None:
+        """Resume what was written before a restart, so hand changes are not overwritten."""
+        self._written.update(written)
+        self._written_at.update(written_at)
+        self._previous.update(previous)
+
+    def stuck_off(self) -> frozenset[str]:
+        """Rooms whose TRV stayed switched off despite repeated attempts to turn it on."""
+        now = datetime.now(timezone.utc)
+        return frozenset(
+            room
+            for room, since in self._off_since.items()
+            if self._mode_attempts.get(room, 0) >= MODE_FIX_MIN_ATTEMPTS
+            and now - since >= MODE_FIX_GIVE_UP_AFTER
+        )
+
+    async def async_fix_modes(self) -> None:
+        """Turn a TRV that is switched off back on (heat, else auto); it ignores setpoints when off."""
+        now = datetime.now(timezone.utc)
+        for room, entity_id in self._entities.items():
+            state = self._hass.states.get(entity_id)
+            if state is None or state.state != "off":
+                self._off_since.pop(room, None)
+                self._mode_attempts.pop(room, None)
+                self._mode_attempt_at.pop(room, None)
+                continue
+            self._off_since.setdefault(room, now)
+            last = self._mode_attempt_at.get(room)
+            if last is not None and now - last < MODE_FIX_MIN_INTERVAL:
+                continue
+            modes = state.attributes.get("hvac_modes") or []
+            mode = next((m for m in ("heat", "auto") if m in modes), None)
+            if mode is None:
+                continue
+            self._mode_attempts[room] = self._mode_attempts.get(room, 0) + 1
+            self._mode_attempt_at[room] = now
+            _LOGGER.info("TRV %s is switched off; setting mode to %s", entity_id, mode)
+            try:
+                await self._hass.services.async_call(
+                    "climate",
+                    "set_hvac_mode",
+                    {"entity_id": entity_id, "hvac_mode": mode},
+                    blocking=True,
+                )
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Setting %s to %s failed", entity_id, mode)
 
     @property
     def written(self) -> Mapping[str, float]:
@@ -78,6 +138,7 @@ class TrvAdapter:
                     self._previous.pop(room, None)
                 else:
                     self._previous[room] = prior
+            _LOGGER.info("TRV %s set to %s (was %s)", entity_id, target, before)
             self._written[room] = target
             self._written_at[room] = datetime.now(timezone.utc)
 

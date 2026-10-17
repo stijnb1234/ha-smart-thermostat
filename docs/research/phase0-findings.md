@@ -16,6 +16,15 @@ Status: **assumptions**. Probes (ADR-0004) were not run; long-term tests are not
 | Default pre-heat lead time | 1930 house, slow radiators | 60 min before schedule, plus the burner latency above | Learner (ticket 10) replaces it |
 | Boiler fallback on Bosch outage | No boiler call possible | TRVs keep following the schedule (Zigbee, independent of the cloud); EasyControl writes throttled by the backoff; alert after 3 failed writes | Observe an outage |
 
+## Findings from live use (2026-10)
+
+Observed while commissioning, not measured systematically:
+
+- **Bosch EasyControl in manual mode:** the live setpoint is `zones/zn1/manualTemperatureHeating`. Writing it changes `temperatureHeatingSetpoint`, which is read-only. In clock mode the write goes to `zones/zn1/clockOverride/temperatureHeating` (as assumed above). The `ha-bosch-pointt` integration picks the path from the current user mode (0.3.1/0.3.2).
+- **Z2M friendly name:** the user's TRVs are named after their IEEE address, equal to the climate entity object id, so the assumption "friendly name = entity object id" holds there.
+- **A TRV switched off ignores setpoints:** Smart Heating turns it back on (heat, else auto) and raises `trv_off` if that keeps failing.
+- **Still unverified:** burner latency, 429 shape, revert behaviour, external temperature delivery times.
+
 ## Consequences for tickets
 
 - 03 Boiler call: debounce/backoff constants above, all configurable.

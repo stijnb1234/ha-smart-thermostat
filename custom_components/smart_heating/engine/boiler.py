@@ -15,19 +15,29 @@ def demand_rooms(
     config: EngineConfig,
     trv_setpoints: Mapping[str, float],
     room_temps: Mapping[str, float],
+    hand_set: Mapping[str, float] | None = None,
 ) -> tuple[str, ...]:
     """Rooms heating to comfort that are colder than target by more than the hysteresis.
 
     Rooms at setback or frost-hold never call for heat: they are allowed to
     drift down and the boiler should not fire for a few tenths of a degree.
+    A Room whose TRV was set by hand (`hand_set`: Room -> that setpoint) calls for heat
+    when the hand-set value is above its setback, as that shows someone wants it warm.
     """
-    return tuple(
-        room.name
-        for room in config.rooms
-        if room.name in room_temps
-        and trv_setpoints[room.name] >= room.comfort - EPSILON
-        and room_temps[room.name] < trv_setpoints[room.name] - config.demand_hysteresis
-    )
+    hand_set = hand_set or {}
+    calling = []
+    for room in config.rooms:
+        if room.name not in room_temps:
+            continue
+        if room.name in hand_set:
+            wanted = hand_set[room.name]
+            wants = wanted > room.setback + EPSILON
+        else:
+            wanted = trv_setpoints[room.name]
+            wants = wanted >= room.comfort - EPSILON
+        if wants and room_temps[room.name] < wanted - config.demand_hysteresis:
+            calling.append(room.name)
+    return tuple(calling)
 
 
 def has_demand(

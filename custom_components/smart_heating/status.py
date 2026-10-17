@@ -117,6 +117,7 @@ def alert_sentence(alert: Alert) -> str:
         "trv_offline": f"The radiator valve in {room} is not responding.",
         "low_battery": f"The battery of the radiator valve in {room} is low. Replace it soon.",
         "sensor_stale": f"The temperature sensor in {room} stopped reporting.",
+        "trv_off": f"The radiator valve in {room} is switched off and does not turn back on.",
         "target_not_reached": f"{room} has been too cold for a long time and is not reaching its target.",
     }
     return sentences.get(alert.code) or alert.message or alert.code

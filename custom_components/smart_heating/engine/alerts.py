@@ -31,6 +31,8 @@ def compute_alerts(inp: EngineInput) -> tuple[Alert, ...]:
         seen = inp.trv_last_seen.get(name)
         if seen is not None and inp.now - seen > cfg.trv_offline_after:
             alerts.append(Alert("trv_offline", name, f"TRV in {name} is offline"))
+        if name in inp.trv_off:
+            alerts.append(Alert("trv_off", name, f"TRV in {name} is switched off and does not turn on"))
         if inp.battery_low.get(name):
             alerts.append(Alert("low_battery", name, f"TRV battery in {name} is low"))
         ext = inp.external_temps.get(name)

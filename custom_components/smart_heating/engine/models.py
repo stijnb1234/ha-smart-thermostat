@@ -157,6 +157,8 @@ class EngineInput:
     manual_overrides: Mapping[str, ManualRoomOverride] = field(default_factory=dict)
     # Rooms whose assigned occupant entities are all away: no scheduled comfort heating there.
     absent_rooms: frozenset[str] = frozenset()
+    # Rooms whose TRV has been switched off for a while despite correction attempts.
+    trv_off: frozenset[str] = frozenset()
     # When the last tracked person left (None while someone is home).
     away_since: datetime | None = None
     # End of Vacation mode, or None when it is off. Kept set after it passes
@@ -171,7 +173,7 @@ class EngineInput:
 
 
 Reason = Literal[
-    "boost", "window", "vacation", "away", "occupant_away", "pre_heat", "schedule", "setback"
+    "boost", "window", "vacation", "away", "occupant_away", "manual", "pre_heat", "schedule", "setback"
 ]
 
 
@@ -195,6 +197,8 @@ class Decision:
     room_temps: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushes: Mapping[str, float] = field(default_factory=dict)
     window_paused_until: Mapping[str, datetime] = field(default_factory=dict)
+    # Rooms whose TRV was set by hand, with the setpoint it holds (Room -> degC).
+    hand_set: Mapping[str, float] = field(default_factory=dict)
     # Rooms whose unmet demand calls for the boiler (manual override not included).
     demand_rooms: tuple[str, ...] = ()
 

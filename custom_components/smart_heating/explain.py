@@ -45,7 +45,7 @@ def _next_schedule_change(room: RoomConfig, inp: EngineInput, after: datetime) -
 
 
 def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanation:
-    target = decision.trv_setpoints[room.name]
+    target = decision.hand_set.get(room.name, decision.trv_setpoints[room.name])
     reason = decision.reasons[room.name]
     end: datetime | None
     if reason == "boost":
@@ -89,6 +89,9 @@ def summarize(e: Explanation, now: datetime) -> str:
         return f"Nobody home, kept at {_degrees(e.target)}"
     if e.reason == "occupant_away":
         return f"Room's person is away, kept at {_degrees(e.target)}"
+    if e.reason == "manual":
+        held = f"Set by hand to {_degrees(e.target)}"
+        return f"{held}, until {end}" if end else held
     if e.reason == "pre_heat":
         return f"Warming up, warm until {end}" if end else "Warming up"
     if e.reason == "schedule":

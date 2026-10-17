@@ -57,6 +57,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         shared: dict[str, Any],
         learner_store: LearnerStore,
         learner,
+        commands_store=None,
+        restored: Commands | None = None,
     ) -> None:
         super().__init__(
             hass,
@@ -81,6 +83,18 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             hass, opts.get(CONF_PERSONS, []), opts.get(CONF_ARRIVAL_ENTITIES, [])
         )
         self.alerts = AlertAdapter(hass)
+        self._commands_store = commands_store
+        self._prev_manual: frozenset[str] = frozenset()
+        self._prev_hold = None
+        if restored is not None:
+            self.controller.restore(restored)
+            self._trv.restore(
+                restored.trv_setpoints, restored.trv_written_at, restored.trv_previous
+            )
+            if self._ec is not None:
+                self._ec.restore(restored.easycontrol_setpoint, restored.easycontrol_changed_at)
+            self._prev_manual = frozenset(restored.trv_manual)
+            self._prev_hold = restored.easycontrol_hold_until
         self._z2m = {room: z2m_name(e) for room, e in shared["trv_entities"].items()}
         self._last_seen: dict[str, datetime] = {}
         # Last good external reading, so a sensor that goes unavailable ages into a stale alert.
@@ -128,6 +142,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             last_write=self._ec.last_write if self._ec else None,
             easycontrol_observed=self._ec.observed_setpoint if self._ec else None,
             absent_rooms=self._absent_rooms(),
+            trv_off=self._trv.stuck_off(),
             trv_observed={
                 room: v for room in trv_entities if (v := self._trv.observed(room)) is not None
             },
@@ -175,6 +190,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         await run_isolated(
             [
                 ("trv setpoints", lambda: self._trv.async_apply(decision.trv_setpoints, decision.trv_rewrite)),
+                ("trv mode", self._trv.async_fix_modes),
                 ("external temperature", push),
                 ("easycontrol", boiler),
                 ("alerts", lambda: self.alerts.async_apply(decision.alerts)),
@@ -189,10 +205,27 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             self._trv.written_at,
             self._trv.previous,
         )
+        self._log_manual_changes(decision)
+        if self._commands_store is not None:
+            self._commands_store.save_if_changed(self.controller.commands)
         if self.controller.take_learner_dirty():
             await self._store.async_save(self._learner)
         await self._clear_finished_vacation(snap)
         return cycle
+
+    def _log_manual_changes(self, decision) -> None:
+        manual = frozenset(decision.trv_manual)
+        for room in manual - self._prev_manual:
+            _LOGGER.info("TRV in %s was set by hand; leaving it alone until its target changes", room)
+        for room in self._prev_manual - manual:
+            _LOGGER.info("TRV in %s is back under Smart Heating control", room)
+        hold = decision.easycontrol_hold_until
+        if hold != self._prev_hold:
+            if hold is not None:
+                _LOGGER.info("EasyControl was changed by hand; respecting it until %s", hold)
+            else:
+                _LOGGER.info("EasyControl manual hold ended")
+        self._prev_manual, self._prev_hold = manual, hold
 
     async def _clear_finished_vacation(self, snap: Snapshot) -> None:
         vacation = self._shared["vacation"]
