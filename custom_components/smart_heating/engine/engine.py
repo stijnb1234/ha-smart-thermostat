@@ -5,6 +5,7 @@ from typing import Mapping
 
 from .boiler import easycontrol_setpoint, has_demand
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
+from .presence import presence_setpoint
 
 
 def _window_active(window: ScheduleWindow, now: datetime) -> bool:
@@ -75,10 +76,15 @@ def decide(inp: EngineInput) -> Decision:
         room_temps[room.name] = temp
         if external and _needs_push(room.name, temp, inp):
             pushes[room.name] = temp
-    trv_setpoints = {
-        room.name: room.comfort if _wants_comfort(room, inp.now, inp.learned) else room.setback
-        for room in inp.config.rooms
-    }
+    trv_setpoints = {}
+    for room in inp.config.rooms:
+        forced = presence_setpoint(room, inp)
+        if forced is not None:
+            trv_setpoints[room.name] = forced
+        elif _wants_comfort(room, inp.now, inp.learned):
+            trv_setpoints[room.name] = room.comfort
+        else:
+            trv_setpoints[room.name] = room.setback
     demand = has_demand(inp.config, trv_setpoints, room_temps)
     return Decision(
         trv_setpoints=trv_setpoints,

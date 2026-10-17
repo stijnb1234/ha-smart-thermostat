@@ -1,6 +1,7 @@
 """Pure decision engine. No Home Assistant imports allowed in this package."""
 
 from .engine import decide, lead_time_for
+from .presence import vacation_end
 from .models import (
     DEFAULT_LEAD_TIME,
     DEFAULT_LIVING_AREA_SCHEDULE,
@@ -33,4 +34,5 @@ __all__ = [
     "SensorReading",
     "WriteResult",
     "decide",
+    "vacation_end",
 ]

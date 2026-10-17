@@ -52,6 +52,8 @@ class EngineConfig:
     easycontrol_debounce: timedelta = timedelta(minutes=5)
     easycontrol_backoff_base: timedelta = timedelta(minutes=5)
     easycontrol_backoff_max: timedelta = timedelta(minutes=30)
+    # Away longer than this drops rooms from setback to frost-hold.
+    prolonged_absence: timedelta = timedelta(hours=48)
 
 
 @dataclass(frozen=True)
@@ -99,6 +101,11 @@ class EngineInput:
     external_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     trv_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     last_write: WriteResult | None = None
+    # When the last tracked person left (None while someone is home).
+    away_since: datetime | None = None
+    # End of Vacation mode, or None when it is off. Kept set after it passes
+    # until someone is home, so the schedule resumes before arrival.
+    vacation_until: datetime | None = None
 
 
 @dataclass(frozen=True)
