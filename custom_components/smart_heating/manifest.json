@@ -1,7 +1,7 @@
 {
   "domain": "smart_heating",
   "name": "Smart Heating",
-  "after_dependencies": ["mqtt", "recorder"],
+  "after_dependencies": ["frontend", "lovelace", "mqtt", "recorder"],
   "codeowners": ["@stijnb1234"],
   "config_flow": true,
   "documentation": "https://github.com/stijnb1234/ha-smart-thermostat",

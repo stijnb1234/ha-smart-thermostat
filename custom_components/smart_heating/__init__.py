@@ -48,7 +48,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.async_add_executor_job(
         _write_dashboard, hass.config.path(DASHBOARD_FILE), [r.name for r in shared["rooms"]]
     )
+    from . import dashboard_panel
     from .report_glue import schedule_weekly_report
+
+    if dashboard_panel.register(hass):
+        entry.async_on_unload(lambda: dashboard_panel.unregister(hass))
 
     entry.async_on_unload(schedule_weekly_report(hass, entry))
     # Platforms first: the vacation switch restores its state before the first cycle runs.

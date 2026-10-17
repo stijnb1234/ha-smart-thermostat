@@ -23,7 +23,7 @@ Not controlled: floor heating, dumb TRVs (except through the Manual-room overrid
 
 ## Requirements
 
-- Home Assistant 2024.6 or newer.
+- Home Assistant 2025.1 or newer.
 - MQTT integration with Zigbee2MQTT, TRVs exposed as `climate.*` entities (the Z2M friendly name is assumed to equal the climate entity's object id; battery sensor assumed `sensor.<name>_battery`).
 - Bosch EasyControl via `ha-bosch-pointt` (a `climate.*` entity). Optional: without it, no boiler call is made.
 - `person.*` entities for presence (optional).
@@ -70,7 +70,9 @@ Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, senso
 
 ## Dashboard
 
-On setup the integration writes `smart_heating_dashboard.yaml` into your Home Assistant config folder. Register it once in `configuration.yaml`:
+On setup the integration writes `smart_heating_dashboard.yaml` into your Home Assistant config folder and registers it as a **Smart Heating** dashboard in the sidebar. Nothing to configure. Schedules are edited through the integration's Configure dialog (linked from the dashboard).
+
+The registration uses Home Assistant internals, so if it ever fails (see the log) register the file by hand in `configuration.yaml`:
 
 ```yaml
 lovelace:
@@ -82,8 +84,6 @@ lovelace:
       show_in_sidebar: true
       filename: smart_heating_dashboard.yaml
 ```
-
-Restart, and a *Smart Heating* entry appears in the sidebar. Schedules are edited through the integration's Configure dialog (linked from the dashboard).
 
 ## How decisions are made
 
