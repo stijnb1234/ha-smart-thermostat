@@ -32,9 +32,7 @@ def entity_id(domain: str, room: str | None, key: str | None = None) -> str:
 
 HELP_CONTENT = """\
 ## The overview
-The top line says which rooms are heating and whether the boiler is on. Below it, every room
-shows its temperature now, the temperature it is aiming for, and a short sentence about what
-it is doing. Alerts only appear when something needs your attention.
+The top line says which rooms are heating and whether the boiler is on. Below it, every room shows its temperature now, the temperature it is aiming for, and a short sentence about what it is doing. Alerts only appear when something needs your attention. A room can be heating while the boiler is off: a room just under its lower temperature opens its valve, but only rooms that should be warm call the boiler.
 
 ## What the sentence in a room means
 | You see | What it means |
@@ -51,8 +49,7 @@ it is doing. Alerts only appear when something needs your attention.
 | Set by hand to 22 degrees, until 17:00 | You turned the radiator valve yourself. It is left alone until the room's target changes, and the boiler is called if the room is colder than what you set. |
 | Vacation until Mon 00:00, kept at 12 degrees | Vacation mode is on. The room is only kept just above freezing. The house warms up again before the day you come back. |
 
-When two rules apply, the stronger one wins: Boost, then an open window, then Vacation, then
-nobody home, then the schedule.
+When two rules apply, the stronger one wins: Boost, then an open window, then Vacation, then nobody home, then the schedule.
 
 ## The Heating page
 - **Right now / Next change**: what the room is doing and when that changes next, with the temperature it changes to.
@@ -152,7 +149,7 @@ def _rooms_table(rooms: list[dict[str, Any]]) -> str:
         value = f"state_attr('{entity}', '{attr}')"
         return f"{{{{ '%.1f' | format({value}) + '°' if {value} is number else '–' }}}}"
 
-    lines = ["| Room | Now | Aiming for | |", "|---|---|---|---|"]
+    lines = ["| Room | Now | Aiming for | What is happening |", "|---|---|---|---|"]
     for r in rooms:
         climate = entity_id("climate", r["name"])
         summary = entity_id("sensor", r["name"], "summary")

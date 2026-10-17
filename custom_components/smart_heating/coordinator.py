@@ -109,7 +109,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         return None if value is None else SensorReading(value, _reported_at(state))
 
     def _snapshot(self) -> Snapshot:
-        now = dt_util.utcnow()
+        # Local time: schedule windows are wall-clock times, the engine reads them off `now`.
+        now = dt_util.now()
         external: dict[str, SensorReading] = {}
         trv: dict[str, SensorReading] = {}
         battery: dict[str, bool] = {}

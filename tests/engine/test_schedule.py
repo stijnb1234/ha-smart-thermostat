@@ -114,3 +114,15 @@ def test_spec_default_schedules(clock):
     assert setpoint(clock, wrk) == 19.5
     clock.advance(days=1)
     assert setpoint(clock, wrk) == 16.0
+
+
+def test_schedule_uses_the_wall_clock_of_now_not_utc():
+    from datetime import datetime, time, timedelta, timezone
+
+    from custom_components.smart_heating.engine import RoomConfig, ScheduleWindow, in_window
+
+    room = RoomConfig(name="x", schedule=(ScheduleWindow(frozenset(range(7)), time(8), time(17)),))
+    local = timezone(timedelta(hours=2))
+    # 07:30 local is 05:30 UTC: outside the window either way; 08:30 local is 06:30 UTC.
+    assert in_window(room, datetime(2026, 10, 17, 8, 30, tzinfo=local))
+    assert not in_window(room, datetime(2026, 10, 17, 8, 30, tzinfo=local).astimezone(timezone.utc))
