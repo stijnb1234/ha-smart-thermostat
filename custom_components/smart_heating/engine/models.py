@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import Mapping
 
+DEFAULT_LEAD_TIME = timedelta(minutes=70)
+
 
 @dataclass(frozen=True)
 class ScheduleWindow:
@@ -26,6 +28,8 @@ class RoomConfig:
     setback: float = 16.0
     frost_hold: float = 12.0
     schedule: tuple[ScheduleWindow, ...] = ()
+    # Fixed pre-heat lead time: 60 min + 10 min burner latency (phase0 findings).
+    lead_time: timedelta = DEFAULT_LEAD_TIME
     trv_offset: float = 0.0  # added to the TRV sensor reading when no external sensor is used
 
 

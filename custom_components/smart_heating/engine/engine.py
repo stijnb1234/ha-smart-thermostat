@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Mapping
 
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
 
@@ -16,8 +17,21 @@ def _window_active(window: ScheduleWindow, now: datetime) -> bool:
     )
 
 
-def _wants_comfort(room: RoomConfig, now: datetime) -> bool:
-    return any(_window_active(w, now) for w in room.schedule)
+def lead_time_for(room: RoomConfig, learned: Mapping[str, object]) -> timedelta:
+    """Pre-heat lead time for a room: the learned value if any, else the fixed one.
+
+    This is the single place ticket 10 substitutes its learned estimate.
+    """
+    value = learned.get(room.name)
+    return value if isinstance(value, timedelta) else room.lead_time
+
+
+def _wants_comfort(
+    room: RoomConfig, now: datetime, learned: Mapping[str, object]
+) -> bool:
+    """In a window now, or a window starts within the room's lead time."""
+    ahead = now + lead_time_for(room, learned)
+    return any(_window_active(w, now) or _window_active(w, ahead) for w in room.schedule)
 
 
 def _select_temperature(
@@ -62,7 +76,7 @@ def decide(inp: EngineInput) -> Decision:
             pushes[room.name] = temp
     return Decision(
         trv_setpoints={
-            room.name: room.comfort if _wants_comfort(room, inp.now) else room.setback
+            room.name: room.comfort if _wants_comfort(room, inp.now, inp.learned) else room.setback
             for room in inp.config.rooms
         },
         easycontrol_setpoint=inp.config.easycontrol_low,
