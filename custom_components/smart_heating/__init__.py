@@ -19,10 +19,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "rooms": to_engine_rooms(rooms),
         "trv_entities": trv_entities(rooms),
         "sensor_entities": sensor_entities(rooms),
+        "boosts": {},
+        "manual_overrides": {},
     }
     from .report_glue import schedule_weekly_report
 
     entry.async_on_unload(schedule_weekly_report(hass, entry))
+    await hass.config_entries.async_forward_entry_setups(entry, ["button"])
     # Options changes reload the entry, so edits apply without restarting HA.
     entry.async_on_unload(entry.add_update_listener(_async_reload_on_change))
     return True
@@ -33,5 +36,6 @@ async def _async_reload_on_change(hass: HomeAssistant, entry: ConfigEntry) -> No
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unloaded = await hass.config_entries.async_unload_platforms(entry, ["button"])
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    return True
+    return unloaded

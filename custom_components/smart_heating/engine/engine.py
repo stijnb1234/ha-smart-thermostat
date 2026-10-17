@@ -7,6 +7,7 @@ from .alerts import bosch_outage, compute_alerts
 from .boiler import easycontrol_setpoint, has_demand
 from .window import window_pauses
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
+from .overrides import boosted_rooms, manual_override_active
 
 
 def _window_active(window: ScheduleWindow, now: datetime) -> bool:
@@ -77,15 +78,21 @@ def decide(inp: EngineInput) -> Decision:
         room_temps[room.name] = temp
         if external and _needs_push(room.name, temp, inp):
             pushes[room.name] = temp
+    boosted = boosted_rooms(inp.boosts, inp.now)  # top precedence
     trv_setpoints = {
-        room.name: room.comfort if _wants_comfort(room, inp.now, inp.learned) else room.setback
+        room.name: room.comfort
+        if room.name in boosted or _wants_comfort(room, inp.now, inp.learned)
+        else room.setback
         for room in inp.config.rooms
     }
-    paused = window_pauses(inp)
+    # Precedence: Boost > window-open pause > everything else.
+    paused = {k: v for k, v in window_pauses(inp).items() if k not in boosted}
     for room in inp.config.rooms:
-        if room.name in paused:  # precedence: Boost > window-open pause > everything else
+        if room.name in paused:
             trv_setpoints[room.name] = room.frost_hold
-    demand = has_demand(inp.config, trv_setpoints, room_temps)
+    demand = has_demand(inp.config, trv_setpoints, room_temps) or manual_override_active(
+        inp.manual_overrides, inp.now
+    )
     ec_setpoint = easycontrol_setpoint(inp, demand)
     if bosch_outage(inp):
         # Safe fallback: TRVs keep their last setpoints. EasyControl writes stay

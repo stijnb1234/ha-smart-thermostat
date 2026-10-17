@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import Literal, Mapping
 
-DEFAULT_LEAD_TIME = timedelta(minutes=70)
+from .overrides import Boost, ManualRoomOverride
+
+DEFAULT_LEAD_TIME =timedelta(minutes=70)
 
 
 @dataclass(frozen=True)
@@ -120,7 +122,8 @@ class EngineInput:
     trv_last_seen: Mapping[str, datetime] = field(default_factory=dict)
     battery_low: Mapping[str, bool] = field(default_factory=dict)
     unmet_since: Mapping[str, datetime] = field(default_factory=dict)
-
+    boosts: Mapping[str, Boost] = field(default_factory=dict)
+    manual_overrides: Mapping[str, ManualRoomOverride] = field(default_factory=dict)
     # Recent Room temperature readings per Room (oldest first) for window detection.
     temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
 

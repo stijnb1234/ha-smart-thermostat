@@ -19,7 +19,11 @@ from .models import (
     WriteResult,
 )
 
+from .overrides import Boost, ManualRoomOverride
+
 __all__ = [
+    "Boost",
+    "ManualRoomOverride",
     "DEFAULT_LEAD_TIME",
     "lead_time_for",
     "DEFAULT_LIVING_AREA_SCHEDULE",
