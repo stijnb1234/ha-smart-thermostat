@@ -16,6 +16,7 @@ from .explain import summarize
 from .status import (
     alert_sentence,
     backoff_text,
+    hold_text,
     boiler_status,
     demand_text,
     heating_rooms,
@@ -222,6 +223,19 @@ class BoilerBackoffSensor(_SystemSensor):
         return backoff_text(until, now)
 
 
+class BoilerManualHoldSensor(_SystemSensor):
+    key, label = "boiler_manual_hold", "boiler manual hold"
+
+    @property
+    def native_value(self) -> str | None:
+        b = self._boiler
+        if b is None:
+            return None
+        now = dt_util.as_local(self.coordinator.data.inp.now)
+        until = dt_util.as_local(b.hold_until) if b.hold_until else None
+        return hold_text(until, now)
+
+
 SYSTEM_SENSORS = (
     StatusSensor,
     ActiveAlertsSensor,
@@ -230,6 +244,7 @@ SYSTEM_SENSORS = (
     BoilerLastWriteSensor,
     BoilerWriteResultSensor,
     BoilerBackoffSensor,
+    BoilerManualHoldSensor,
 )
 
 

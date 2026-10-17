@@ -26,6 +26,7 @@ class BoilerStatus:
     last_write_at: datetime | None
     last_write_result: str  # ok / rate_limited / error / none
     backoff_until: datetime | None
+    hold_until: datetime | None = None  # a manual EasyControl change is being respected until
 
 
 def boiler_status(inp: EngineInput, decision: Decision) -> BoilerStatus:
@@ -41,6 +42,9 @@ def boiler_status(inp: EngineInput, decision: Decision) -> BoilerStatus:
         until = result.at + backoff_delay(cfg, result)
         if until > inp.now:
             backoff_until = until
+    hold_until = decision.easycontrol_hold_until
+    if hold_until is not None and hold_until <= inp.now:
+        hold_until = None
     return BoilerStatus(
         call_active=call,
         demand_rooms=decision.demand_rooms,
@@ -49,6 +53,7 @@ def boiler_status(inp: EngineInput, decision: Decision) -> BoilerStatus:
         last_write_at=result.at if result else None,
         last_write_result=result.status if result else "none",
         backoff_until=backoff_until,
+        hold_until=hold_until,
     )
 
 
@@ -66,6 +71,13 @@ def backoff_text(until: datetime | None, now: datetime) -> str:
         return "No"
     stamp = _clock(until) if until.date() == now.date() else until.strftime("%a %H:%M")
     return f"Waiting until {stamp}"
+
+
+def hold_text(until: datetime | None, now: datetime) -> str:
+    if until is None:
+        return "No"
+    stamp = _clock(until) if until.date() == now.date() else until.strftime("%a %H:%M")
+    return f"Respecting a manual change until {stamp}"
 
 
 def heating_rooms(

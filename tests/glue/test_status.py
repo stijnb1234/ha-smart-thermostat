@@ -15,6 +15,7 @@ from custom_components.smart_heating.engine import (
 from custom_components.smart_heating.status import (
     alert_sentence,
     backoff_text,
+    hold_text,
     boiler_status,
     demand_text,
     heating_rooms,
@@ -113,3 +114,16 @@ def test_demand_and_backoff_text():
     assert demand_text(boiler_status(*make({"A": 20.0}))) == "None"
     assert backoff_text(None, NOW) == "No"
     assert backoff_text(NOW + timedelta(minutes=5), NOW) == "Waiting until 10:05"
+
+
+def test_manual_hold_status_and_text():
+    held = Commands(
+        easycontrol_setpoint=LOW,
+        easycontrol_changed_at=NOW - timedelta(hours=1),
+        easycontrol_hold_until=NOW + timedelta(minutes=30),
+    )
+    st = boiler_status(*make({"Work room": 20.0}, commands=held))
+    assert st.hold_until == NOW + timedelta(minutes=30)
+    assert hold_text(st.hold_until, NOW) == "Respecting a manual change until 10:30"
+    assert hold_text(None, NOW) == "No"
+    assert boiler_status(*make({"Work room": 20.0})).hold_until is None

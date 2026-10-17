@@ -66,7 +66,7 @@ Changes apply without restarting Home Assistant.
 
 ## Entities
 
-Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, sensors for *reason* (machine value), *summary* (plain sentence, e.g. "Warm from 17:00"), *next change* and *lead time*, Boost and cancel-boost `button`s. System-wide: a Vacation `switch` and days `number`, and Manual-room override start and cancel `button`s. Status entities: `sensor.smart_heating_status`, `sensor.smart_heating_active_alerts` (count, plain-language `messages` attribute), `binary_sensor.smart_heating_boiler_call` and `sensor.smart_heating_boiler_*` (`demand_rooms`, `target`, `last_write`, `write_result`, `backoff`).
+Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, sensors for *reason* (machine value), *summary* (plain sentence, e.g. "Warm from 17:00"), *next change* and *lead time*, Boost and cancel-boost `button`s. System-wide: a Vacation `switch` and days `number`, and Manual-room override start and cancel `button`s. Status entities: `sensor.smart_heating_status`, `sensor.smart_heating_active_alerts` (count, plain-language `messages` attribute), `binary_sensor.smart_heating_boiler_call` and `sensor.smart_heating_boiler_*` (`demand_rooms`, `target`, `last_write`, `write_result`, `backoff`, `manual_hold`).
 
 ## Dashboard
 

@@ -151,7 +151,7 @@ def _overview_view(rooms: list[dict[str, Any]]) -> dict[str, Any]:
                 {"entity": entity_id("sensor", None, "boiler_last_write"), "name": "Last sent to the EasyControl"},
                 {"entity": entity_id("sensor", None, "boiler_write_result"), "name": "Result of last send"},
                 {"entity": entity_id("sensor", None, "boiler_backoff"), "name": "Paused after an error"},
-                # TODO: show manual hold here once the manual-hold feature lands.
+                {"entity": entity_id("sensor", None, "boiler_manual_hold"), "name": "Manual change on the EasyControl"},
             ],
         },
     )
