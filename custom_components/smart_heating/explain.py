@@ -55,7 +55,7 @@ def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanati
         end = decision.window_paused_until[room.name]
     elif reason == "vacation":
         end = inp.vacation_until
-    elif reason == "away":
+    elif reason in ("away", "occupant_away"):
         return Explanation(reason, target)
     else:
         change = _next_schedule_change(room, inp, inp.now)
@@ -87,6 +87,8 @@ def summarize(e: Explanation, now: datetime) -> str:
         return f"{until}, kept at {_degrees(e.target)}"
     if e.reason == "away":
         return f"Nobody home, kept at {_degrees(e.target)}"
+    if e.reason == "occupant_away":
+        return f"Room's person is away, kept at {_degrees(e.target)}"
     if e.reason == "pre_heat":
         return f"Warming up, warm until {end}" if end else "Warming up"
     if e.reason == "schedule":

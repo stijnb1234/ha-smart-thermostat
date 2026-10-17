@@ -29,6 +29,7 @@ from .engine import Commands, SensorReading
 from .gather import battery_entity, battery_is_low, parse_number, z2m_name
 from .learner_store import LearnerStore
 from .presence_adapter import PresenceAdapter
+from .rooms import absent_rooms
 from .settings import build_engine_config
 from .trv_adapter import TrvAdapter
 
@@ -38,6 +39,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 _UNAVAILABLE = ("unavailable", "unknown", None)
+_PRESENT_STATES = ("home", "on")
+# A heading-home entity is active in any state but these (a person in a zone has the zone name).
+_NOT_ARRIVING = ("not_home", "off", "unavailable", "unknown")
 
 
 def _reported_at(state: State) -> datetime:
@@ -120,10 +124,30 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             outdoor_temp=outdoor.value if outdoor else None,
             last_write=self._ec.last_write if self._ec else None,
             easycontrol_observed=self._ec.observed_setpoint if self._ec else None,
+            absent_rooms=self._absent_rooms(),
             trv_observed={
                 room: v for room in trv_entities if (v := self._trv.observed(room)) is not None
             },
         )
+
+    def _absent_rooms(self) -> frozenset[str]:
+        presence = self._shared["presence_entities"]
+        known: dict[str, bool | None] = {}
+        for entities in presence.values():
+            for entity in entities:
+                state = self.hass.states.get(entity)
+                known[entity] = (
+                    None
+                    if state is None or state.state in _UNAVAILABLE
+                    else state.state in _PRESENT_STATES
+                )
+        arrival = self._shared["arrival_entities"]
+        arriving = {
+            e: (s := self.hass.states.get(e)) is not None and s.state not in _NOT_ARRIVING
+            for entities in arrival.values()
+            for e in entities
+        }
+        return absent_rooms(presence, known, arrival, arriving)
 
     async def _async_update_data(self) -> Cycle:
         snap = self._snapshot()

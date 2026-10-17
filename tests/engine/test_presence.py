@@ -129,3 +129,25 @@ def test_vacation_keeps_boiler_call_low(clock):
     )
 
     assert decision.easycontrol_setpoint == 10.0
+
+
+def test_absent_occupant_skips_schedule_but_boost_wins(clock):
+    from custom_components.smart_heating.engine import Boost
+
+    clock.advance(hours=9)  # inside the window
+    d = decide(make_input(clock, absent_rooms=frozenset({"living"})))
+    assert (d.trv_setpoints["living"], d.reasons["living"]) == (16.0, "occupant_away")
+    boost = {"living": Boost(clock.now(), timedelta(hours=1))}
+    d = decide(make_input(clock, absent_rooms=frozenset({"living"}), boosts=boost))
+    assert d.reasons["living"] == "boost"
+
+
+def test_absent_occupant_outside_schedule_stays_plain_setback(clock):
+    d = decide(make_input(clock, absent_rooms=frozenset({"living"})))  # midnight
+    assert d.reasons["living"] == "setback"
+
+
+def test_absent_occupant_blocks_early_comfort(clock):
+    clock.advance(hours=5, minutes=30)  # in the pre-heat lead before the 06:00 window
+    assert decide(make_input(clock)).trv_setpoints["living"] == 19.5
+    assert decide(make_input(clock, absent_rooms=frozenset({"living"}))).reasons["living"] == "occupant_away"

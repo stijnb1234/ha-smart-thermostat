@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from .const import CONF_ROOMS, DASHBOARD_FILE, DOMAIN
 from .dashboard import build_dashboard, to_yaml
-from .rooms import sensor_entities, to_engine_rooms, trv_entities
+from .rooms import arrival_entities, presence_entities, sensor_entities, to_engine_rooms, trv_entities
 from .settings import boost_duration, manual_override_duration
 
 if TYPE_CHECKING:
@@ -33,6 +33,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "rooms": to_engine_rooms(rooms),
         "trv_entities": trv_entities(rooms),
         "sensor_entities": sensor_entities(rooms),
+        "presence_entities": presence_entities(rooms),
+        "arrival_entities": arrival_entities(rooms),
         "boosts": boosts,
         "manual_overrides": manual_overrides,
         "override_store": override_store,

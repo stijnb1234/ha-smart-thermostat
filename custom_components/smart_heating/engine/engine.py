@@ -58,7 +58,9 @@ def _target(
     boosted: frozenset[str],
     paused: Mapping[str, datetime],
 ) -> tuple[float, Reason]:
-    """The precedence ladder: Boost > window-open pause > Vacation > Away > schedule > setback."""
+    """The precedence ladder: Boost > window-open pause > Vacation > Away > schedule > setback.
+
+    A scheduled comfort period (incl. pre-heat) drops to setback while the room's occupants are away."""
     if room.name in boosted:
         return room.comfort, "boost"
     if room.name in paused:
@@ -67,6 +69,8 @@ def _target(
     if forced is not None:
         return forced, "vacation" if inp.vacation_until is not None else "away"
     if wants_comfort(room, inp.now, inp.learned):
+        if room.name in inp.absent_rooms:
+            return room.setback, "occupant_away"
         return room.comfort, "schedule" if in_window(room, inp.now) else "pre_heat"
     return room.setback, "setback"
 

@@ -201,3 +201,24 @@ def test_form_without_preset_or_text_has_empty_schedule_and_keeps_false_flags():
 
 def test_form_time_with_seconds_is_accepted():
     assert parse_schedule("daily 21:30:00-22:30:00")[0]["start"] == "21:30"
+
+
+def test_absent_rooms_only_when_all_known_away():
+    from custom_components.smart_heating.rooms import absent_rooms, presence_entities
+
+    rooms = [{"name": "Work", "presence_entities": ["person.a", "person.b"]}, {"name": "Hall"}]
+    pres = presence_entities(rooms)
+    assert pres == {"Work": ("person.a", "person.b")}
+    assert absent_rooms(pres, {"person.a": False, "person.b": False}) == {"Work"}
+    assert absent_rooms(pres, {"person.a": False, "person.b": True}) == frozenset()
+    assert absent_rooms(pres, {"person.a": False, "person.b": None}) == frozenset()
+
+
+def test_arrival_signal_cancels_absence():
+    from custom_components.smart_heating.rooms import absent_rooms, arrival_entities
+
+    rooms = [{"name": "Work", "presence_entities": ["person.a"], "arrival_entities": ["person.a_near"]}]
+    arr = arrival_entities(rooms)
+    pres = {"Work": ("person.a",)}
+    assert absent_rooms(pres, {"person.a": False}, arr, {"person.a_near": False}) == {"Work"}
+    assert absent_rooms(pres, {"person.a": False}, arr, {"person.a_near": True}) == frozenset()

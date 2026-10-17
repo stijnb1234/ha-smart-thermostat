@@ -40,6 +40,7 @@ Behind that sentence is one of these reasons (the rules at the top win over the 
 | window | The room cooled down very fast, so a window is probably open. Heating is paused for a little while. |
 | vacation | Vacation mode is on. The room is only kept just above freezing. |
 | away | Nobody is home. The room is kept a bit cooler than normal. After a long absence it is only kept just above freezing. |
+| occupant_away | The person this room is for is away, so the schedule is skipped and the room stays at its lower temperature. It warms up again once they are back (it can take a while, as there is no early warm-up). |
 | pre_heat | The room is heating up early so it is already warm when its schedule starts. |
 | schedule | The room is in a scheduled warm period, so it is heated to its normal warm temperature. |
 | setback | Nobody needs this room warm now, so it stays at its lower temperature. |

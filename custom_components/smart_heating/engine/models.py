@@ -155,6 +155,8 @@ class EngineInput:
     unmet_since: Mapping[str, datetime] = field(default_factory=dict)
     boosts: Mapping[str, Boost] = field(default_factory=dict)
     manual_overrides: Mapping[str, ManualRoomOverride] = field(default_factory=dict)
+    # Rooms whose assigned occupant entities are all away: no scheduled comfort heating there.
+    absent_rooms: frozenset[str] = frozenset()
     # When the last tracked person left (None while someone is home).
     away_since: datetime | None = None
     # End of Vacation mode, or None when it is off. Kept set after it passes
@@ -168,7 +170,9 @@ class EngineInput:
     temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
 
 
-Reason = Literal["boost", "window", "vacation", "away", "pre_heat", "schedule", "setback"]
+Reason = Literal[
+    "boost", "window", "vacation", "away", "occupant_away", "pre_heat", "schedule", "setback"
+]
 
 
 @dataclass(frozen=True)

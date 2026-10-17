@@ -1,7 +1,9 @@
 """Pure mapping between stored Room config (config entry options) and the engine.
 
 No Home Assistant imports. A stored room is a JSON-serialisable dict:
-  name, [trv_entity], [manual], [sensor_entity], [comfort], [setback], [frost_hold],
+  name, [trv_entity], [manual], [sensor_entity], [arrival_entities: same kinds, or a person in a zone; active = heading home, room warms early],
+  [presence_entities: person/tracker/switch ids; room is skipped by the
+  schedule while all are away], [comfort], [setback], [frost_hold],
   [trv_offset], [lead_time_minutes], [window_detection], [window_drop],
   [window_pause_minutes],
   [schedule: list of {days: [0..6], start: "HH:MM", end: "HH:MM"}]
@@ -233,6 +235,34 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
 
 def trv_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, str]:
     return {r["name"]: r["trv_entity"] for r in rooms if not r.get("manual") and r.get("trv_entity")}
+
+
+def presence_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, tuple[str, ...]]:
+    return {r["name"]: tuple(r["presence_entities"]) for r in rooms if r.get("presence_entities")}
+
+
+def arrival_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, tuple[str, ...]]:
+    return {r["name"]: tuple(r["arrival_entities"]) for r in rooms if r.get("arrival_entities")}
+
+
+def absent_rooms(
+    presence: Mapping[str, Sequence[str]],
+    is_present: Mapping[str, bool | None],
+    arrival: Mapping[str, Sequence[str]] | None = None,
+    is_arriving: Mapping[str, bool] | None = None,
+) -> frozenset[str]:
+    """Rooms whose occupant entities are all known to be away (unknown counts as present).
+
+    A room whose arrival entity signals someone heading home is not absent, so it warms up early.
+    """
+    arrival, is_arriving = arrival or {}, is_arriving or {}
+    return frozenset(
+        room
+        for room, entities in presence.items()
+        if entities
+        and all(is_present.get(e) is False for e in entities)
+        and not any(is_arriving.get(e) for e in arrival.get(room, ()))
+    )
 
 
 def sensor_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, str]:

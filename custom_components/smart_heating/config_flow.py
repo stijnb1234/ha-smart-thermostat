@@ -144,6 +144,18 @@ def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> v
             opt("sensor_entity"): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
             ),
+            opt("presence_entities"): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
+                    multiple=True,
+                )
+            ),
+            opt("arrival_entities"): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
+                    multiple=True,
+                )
+            ),
             opt("comfort", DEFAULT_COMFORT): comfort,
             opt("setback", DEFAULT_SETBACK): comfort,
             opt("frost_hold", DEFAULT_FROST_HOLD): comfort,

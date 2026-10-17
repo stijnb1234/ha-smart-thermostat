@@ -50,6 +50,7 @@ class Snapshot:
     last_write: WriteResult | None
     easycontrol_observed: float | None = None
     trv_observed: Mapping[str, float] = field(default_factory=dict)
+    absent_rooms: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -125,6 +126,7 @@ class Controller:
             boosts=self._boosts,
             manual_overrides=self._overrides,
             away_since=snap.away_since,
+            absent_rooms=snap.absent_rooms,
             vacation_until=snap.vacation_until,
             temp_history=dict(self._history),
         )
