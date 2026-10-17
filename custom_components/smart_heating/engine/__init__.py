@@ -12,6 +12,8 @@ from .models import (
     EngineInput,
     RoomConfig,
     ScheduleWindow,
+    SensorConfig,
+    SensorReading,
 )
 
 __all__ = [
@@ -26,5 +28,7 @@ __all__ = [
     "EngineInput",
     "RoomConfig",
     "ScheduleWindow",
+    "SensorConfig",
+    "SensorReading",
     "decide",
 ]

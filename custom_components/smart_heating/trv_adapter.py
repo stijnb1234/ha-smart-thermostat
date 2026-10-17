@@ -6,6 +6,7 @@ schedule transition results in exactly one write per Room.
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Mapping
 
 if TYPE_CHECKING:
@@ -35,3 +36,25 @@ class TrvAdapter:
                 blocking=True,
             )
             self._written[room] = target
+
+    async def async_push_external_temperature(
+        self, pushes: Mapping[str, float], z2m_names: Mapping[str, str]
+    ) -> None:
+        """Publish external room temperature to zigbee2mqtt/<name>/set.
+
+        z2m_names maps Room name to the Z2M friendly name. Delivery to the
+        sleepy device may take minutes (ADR-0003), so this is fire and forget.
+        """
+        for room, value in pushes.items():
+            name = z2m_names.get(room)
+            if name is None:
+                continue
+            await self._hass.services.async_call(
+                "mqtt",
+                "publish",
+                {
+                    "topic": f"zigbee2mqtt/{name}/set",
+                    "payload": json.dumps({"external_temperature": value}),
+                },
+                blocking=True,
+            )
