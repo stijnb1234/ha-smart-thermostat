@@ -12,6 +12,21 @@ from typing import TYPE_CHECKING, Iterable
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
+# A heading-home entity is active in any state but these (a person in a zone has the zone name).
+_NOT_ARRIVING = ("not_home", "off", "unavailable", "unknown")
+
+
+def is_arriving(entity_id: str, state: str | None) -> bool:
+    """A zone counts the people in it, so it is active above zero; other entities in any active state."""
+    if state is None or state in _NOT_ARRIVING:
+        return False
+    if entity_id.startswith("zone."):
+        try:
+            return int(state) > 0
+        except ValueError:
+            return False
+    return True
+
 
 class PresenceAdapter:
     def __init__(
@@ -34,10 +49,9 @@ class PresenceAdapter:
         )
 
     def arriving(self) -> bool:
-        """A heading-home entity is active: on, or a person in any zone (not 'not_home')."""
+        """A heading-home entity is active: on, a zone with someone in it, or a person in any zone."""
         return any(
-            (state := self._hass.states.get(e)) is not None
-            and state.state not in ("not_home", "off", "unavailable", "unknown")
+            is_arriving(e, state.state if (state := self._hass.states.get(e)) else None)
             for e in self._arrival
         )
 

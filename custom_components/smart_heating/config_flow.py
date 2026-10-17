@@ -156,7 +156,7 @@ def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> v
             ),
             opt("arrival_entities"): selector.EntitySelector(
                 selector.EntitySelectorConfig(
-                    domain=["person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
+                    domain=["zone", "person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
                     multiple=True,
                 )
             ),
@@ -278,7 +278,7 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                 ),
                 opt(CONF_ARRIVAL_ENTITIES): selector.EntitySelector(
                     selector.EntitySelectorConfig(
-                        domain=["person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
+                        domain=["zone", "person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
                         multiple=True,
                     )
                 ),

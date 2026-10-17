@@ -22,7 +22,7 @@ Room-by-room heating for Home Assistant. One boiler, several radiators: the boil
 - **Away**: everyone out drops rooms to setback; after 48 h, to frost-hold.
 - **Vacation mode** holds frost-hold for a set number of days and is back on schedule from midnight on the day you return.
 - **Per-room occupants**: link a room to people or entities (person, device tracker, binary sensor, switch). While all of them are away, the room skips its schedule and pre-heat and stays at setback. Boost still wins. Unknown or unavailable entities count as present.
-- **Heading home**: an optional signal (a person entering a "near home" zone, a switch you flip) cancels a room's occupant skip within its schedule. The same signal exists globally and ends Away or Vacation early, so the house is warm when you arrive.
+- **Heading home**: an optional signal (someone in a "near home" zone, a switch you flip) cancels a room's occupant skip within its schedule. The same signal exists globally and ends Away or Vacation early, so the house is warm when you arrive.
 
 **Automatic behaviour**
 

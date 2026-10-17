@@ -251,3 +251,15 @@ def test_floor_heating_wins_over_manual_flag():
     stored = {"name": "Kitchen", "manual": True, "floor_heating": True, "sensor_entity": "sensor.t"}
     assert [r.name for r in to_engine_rooms([stored])] == ["Kitchen"]
     assert "manual" not in room_from_form({**stored, "lead_time_minutes": 180})
+
+
+def test_zone_arrival_counts_people_in_it():
+    from custom_components.smart_heating.presence_adapter import is_arriving
+
+    assert is_arriving("zone.almost_home", "1")
+    assert not is_arriving("zone.almost_home", "0")
+    assert not is_arriving("zone.almost_home", "unavailable")
+    assert is_arriving("person.a", "Almost home")
+    assert not is_arriving("person.a", "not_home")
+    assert not is_arriving("binary_sensor.near", "off")
+    assert not is_arriving("binary_sensor.near", None)
