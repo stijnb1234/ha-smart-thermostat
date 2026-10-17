@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Mapping, Sequence
 
+from .engine import Alert
+
 DEFAULT_HDD_BASE = 18.0
 
 
@@ -88,3 +90,20 @@ def build_report(
         room_hours=dict(room_hours),
         issues=list(issues),
     )
+
+
+def alert_issues(
+    history: Sequence[tuple[datetime, Alert]], active: Sequence[Alert], since: datetime
+) -> list[str]:
+    """Report lines for alerts raised since `since` or still active, one per (code, room)."""
+    still_active = {(a.code, a.room) for a in active}
+    seen: dict[tuple[str, str | None], Alert] = {}
+    for at, alert in history:
+        if at >= since:
+            seen[(alert.code, alert.room)] = alert
+    for alert in active:
+        seen.setdefault((alert.code, alert.room), alert)
+    return [
+        f"{a.message or a.code}" + (" (still active)" if key in still_active else " (resolved)")
+        for key, a in seen.items()
+    ]

@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from .const import CONF_GAS_ENTITY, CONF_HDD_BASE, CONF_OUTDOOR_ENTITY, CONF_ROOMS
-from .report import DEFAULT_HDD_BASE, build_report, heated_hours
+from .const import DOMAIN
+from .report import DEFAULT_HDD_BASE, alert_issues, build_report, heated_hours
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -42,7 +43,9 @@ async def _room_hours_and_issues(hass, rooms, start, end):
     hours: dict[str, float] = {}
     issues: list[str] = []
     for room in rooms:
-        entity = room["trv_entity"]
+        entity = room.get("trv_entity")
+        if not entity:  # Room without a TRV (manual): no history to report
+            continue
         states = await get_instance(hass).async_add_executor_job(
             history.state_changes_during_period, hass, start, end, entity
         )
@@ -68,6 +71,10 @@ async def async_send_report(hass: HomeAssistant, entry: ConfigEntry) -> None:
     this_gas, temps = await _gas_and_temps(hass, gas, outdoor, start, end)
     last_gas, last_temps = await _gas_and_temps(hass, gas, outdoor, start - YEAR_AGO, end - YEAR_AGO)
     hours, issues = await _room_hours_and_issues(hass, opts.get(CONF_ROOMS, []), start, end)
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get("coordinator")
+    if coordinator is not None:
+        notifier = coordinator.alerts.notifier
+        issues += alert_issues(notifier.history, notifier.active, start)
     if not gas:
         issues.append("No gas meter configured (Configure > Gas report settings)")
     if not outdoor:

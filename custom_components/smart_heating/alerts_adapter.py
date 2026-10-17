@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from .const import DOMAIN
@@ -20,8 +21,13 @@ class AlertAdapter:
         self._hass = hass
         self._notifier = AlertNotifier()
 
+    @property
+    def notifier(self) -> AlertNotifier:
+        """Exposes `history` and `active` for the weekly report."""
+        return self._notifier
+
     async def async_apply(self, alerts: tuple[Alert, ...]) -> None:
-        changes = self._notifier.update(alerts)
+        changes = self._notifier.update(alerts, datetime.now(timezone.utc))
         for alert in changes.raised:
             await self._hass.services.async_call(
                 "persistent_notification",

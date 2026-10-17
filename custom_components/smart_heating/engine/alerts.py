@@ -57,6 +57,9 @@ def track_unmet(
     return result
 
 
+HISTORY_LIMIT = 200
+
+
 @dataclass(frozen=True)
 class AlertChanges:
     raised: tuple[Alert, ...] = ()
@@ -68,10 +71,18 @@ class AlertNotifier:
 
     def __init__(self) -> None:
         self._active: dict[tuple[str, str | None], Alert] = {}
+        self.history: list[tuple[datetime, Alert]] = []  # every raise, oldest first
 
-    def update(self, alerts: tuple[Alert, ...]) -> AlertChanges:
+    @property
+    def active(self) -> tuple[Alert, ...]:
+        return tuple(self._active.values())
+
+    def update(self, alerts: tuple[Alert, ...], now: datetime | None = None) -> AlertChanges:
         current = {(a.code, a.room): a for a in alerts}
         raised = tuple(a for k, a in current.items() if k not in self._active)
+        if now is not None:
+            self.history.extend((now, a) for a in raised)
+            del self.history[:-HISTORY_LIMIT]
         cleared = tuple(a for k, a in self._active.items() if k not in current)
         self._active = current
         return AlertChanges(raised, cleared)

@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 
+from custom_components.smart_heating.engine import Alert, AlertNotifier
 from custom_components.smart_heating.report import (
+    alert_issues,
     build_report,
     heated_hours,
     heating_degree_days,
@@ -58,3 +60,26 @@ def test_report_handles_missing_gas_or_zero_hdd():
                      room_hours={}, issues=[])
     assert r.m3_per_hdd is None and r.last_year_m3_per_hdd is None
     assert "no gas data" in r.format().lower()
+
+
+def test_alert_issues_list_recent_and_active_alerts_once():
+    t = datetime(2026, 10, 12, 6, 0)
+    low = Alert("low_battery", "Bed", "TRV battery in Bed is low")
+    outage = Alert("bosch_outage", None, "Bosch cloud unreachable")
+    old = Alert("trv_offline", "Old", "TRV in Old is offline")
+    history = [(t - timedelta(days=30), old), (t + timedelta(hours=1), outage), (t + timedelta(days=1), low),
+               (t + timedelta(days=2), low)]
+
+    lines = alert_issues(history, [low], since=t)
+
+    assert lines == ["Bosch cloud unreachable (resolved)", "TRV battery in Bed is low (still active)"]
+
+
+def test_notifier_records_raise_history_with_time():
+    n = AlertNotifier()
+    t = datetime(2026, 10, 12, 6, 0)
+    a = Alert("low_battery", "Bed", "low")
+    n.update((a,), t)
+    n.update((a,), t + timedelta(minutes=1))
+
+    assert n.history == [(t, a)] and n.active == (a,)
