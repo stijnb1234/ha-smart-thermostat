@@ -243,3 +243,11 @@ def test_schedule_accepts_dutch_day_names():
     assert parse_schedule("ma,wo,vr 08:00-17:00")[0]["days"] == [0, 2, 4]
     assert parse_schedule("ma-vr 07:00-09:00")[0]["days"] == [0, 1, 2, 3, 4]
     assert parse_schedule("dagelijks 06:00-23:00")[0]["days"] == list(range(7))
+
+
+def test_floor_heating_wins_over_manual_flag():
+    from custom_components.smart_heating.rooms import room_from_form, to_engine_rooms
+
+    stored = {"name": "Kitchen", "manual": True, "floor_heating": True, "sensor_entity": "sensor.t"}
+    assert [r.name for r in to_engine_rooms([stored])] == ["Kitchen"]
+    assert "manual" not in room_from_form({**stored, "lead_time_minutes": 180})

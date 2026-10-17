@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from .const import CONF_ROOMS, DASHBOARD_FILE, DOMAIN
 from .dashboard import build_dashboard, to_yaml
-from .rooms import arrival_entities, presence_entities, sensor_entities, to_engine_rooms, trv_entities
+from .rooms import arrival_entities, is_manual, presence_entities, sensor_entities, to_engine_rooms, trv_entities
 from .i18n import pick_language
 from .settings import boost_duration, manual_override_duration
 
@@ -58,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.async_add_executor_job(
         _write_dashboard,
         hass.config.path(DASHBOARD_FILE),
-        [r for r in rooms if not r.get("manual")],
+        [r for r in rooms if not is_manual(r)],
         shared["lang"],
     )
     from . import dashboard_panel

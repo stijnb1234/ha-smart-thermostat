@@ -154,6 +154,8 @@ def room_from_form(
     """Stored Room from room-form input. A blank schedule text takes the chosen preset."""
     skip = ("schedule_text", "preset")
     room = {k: v for k, v in user_input.items() if k not in skip and v not in (None, "")}
+    if room.get("floor_heating"):
+        room.pop("manual", None)  # a floor heating room is controlled: not a manual room
     if room.get("floor_heating") and float(room.get("lead_time_minutes", 0)) == (
         DEFAULT_LEAD_TIME.total_seconds() / 60
     ):
@@ -248,8 +250,13 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
             ),
         )
         for r in rooms
-        if not r.get("manual")
+        if not is_manual(r)
     )
+
+
+def is_manual(room: Mapping[str, Any]) -> bool:
+    """A manual room is not controlled by the engine. Floor heating wins over the manual flag."""
+    return bool(room.get("manual")) and not room.get("floor_heating")
 
 
 def trv_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, str]:
