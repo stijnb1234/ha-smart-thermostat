@@ -53,7 +53,7 @@
         "description": "{reason}\n\nSchema: één comfortvenster per regel, bijv. `ma,wo,vr 08:00-17:00` of `dagelijks 06:00-23:00` (dagen: ma di wo do vr za zo). Buiten de vensters staat de ruimte op de lage temperatuur.",
         "data": {
           "name": "Naam van de ruimte",
-          "manual": "Geen Zigbee-radiatorkraan (vloerverwarming of gewone kraan; alleen gebruikt door de handmatige ruimte-override)",
+          "manual": "Handmatige ruimte: gewone radiatorkraan zonder Zigbee (alleen gebruikt door de handmatige ruimte-override; niet voor vloerverwarming, gebruik de volgende optie)",
           "floor_heating": "Vloerverwarming (geen radiatorkraan; vereist een temperatuursensor; warmt zeer vroeg op en houdt ongebruikte radiatoren intussen dicht)",
           "trv_entity": "Radiatorkraan (klimaatentiteit; niet nodig voor een handmatige ruimte)",
           "sensor_entity": "Externe temperatuursensor (optioneel)",
@@ -82,7 +82,7 @@
         "description": "{reason}\n\nSchema: één comfortvenster per regel, bijv. `ma,wo,vr 08:00-17:00` of `dagelijks 06:00-23:00` (dagen: ma di wo do vr za zo).",
         "data": {
           "name": "Naam van de ruimte",
-          "manual": "Geen Zigbee-radiatorkraan (vloerverwarming of gewone kraan; alleen gebruikt door de handmatige ruimte-override)",
+          "manual": "Handmatige ruimte: gewone radiatorkraan zonder Zigbee (alleen gebruikt door de handmatige ruimte-override; niet voor vloerverwarming, gebruik de volgende optie)",
           "floor_heating": "Vloerverwarming (geen radiatorkraan; vereist een temperatuursensor; warmt zeer vroeg op en houdt ongebruikte radiatoren intussen dicht)",
           "trv_entity": "Radiatorkraan (klimaatentiteit; niet nodig voor een handmatige ruimte)",
           "sensor_entity": "Externe temperatuursensor (optioneel)",
