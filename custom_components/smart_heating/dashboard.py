@@ -48,6 +48,8 @@ The rules at the top win over the ones below.
 
 **When does the boiler turn on?** Only when at least one room that should be warm is clearly colder than it should be. When no room needs heat, the boiler is allowed to rest.
 
+**Changed something by hand?** A radiator you turn by hand is left alone until that room's target next changes. A change on the EasyControl is respected for about two hours.
+
 **Manual room override** is for rooms where you turn the radiator on by hand. It tells the boiler to heat for a set time, since the system can't see that room. Use its cancel button to stop it early.
 """
 

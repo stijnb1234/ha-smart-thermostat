@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Mapping
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Collection, Mapping
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -23,16 +24,44 @@ class TrvAdapter:
         self._hass = hass
         self._entities = dict(entities)
         self._written: dict[str, float] = {}
+        self._written_at: dict[str, datetime] = {}
+        self._previous: dict[str, float] = {}
 
     @property
     def written(self) -> Mapping[str, float]:
         return self._written
 
-    async def async_apply(self, setpoints: Mapping[str, float]) -> None:
+    @property
+    def written_at(self) -> Mapping[str, datetime]:
+        return self._written_at
+
+    @property
+    def previous(self) -> Mapping[str, float]:
+        """Per Room, the setpoint the TRV reported just before our latest change of target."""
+        return self._previous
+
+    def observed(self, room: str) -> float | None:
+        """Setpoint the TRV currently reports, or None when unavailable."""
+        entity_id = self._entities.get(room)
+        state = self._hass.states.get(entity_id) if entity_id else None
+        if state is None or state.state in ("unavailable", "unknown"):
+            return None
+        try:
+            value = state.attributes.get("temperature")
+            return None if value is None else float(value)
+        except (TypeError, ValueError):
+            return None
+
+    async def async_apply(
+        self, setpoints: Mapping[str, float], force: Collection[str] = ()
+    ) -> None:
+        """Write changed setpoints, plus those in `force` even though unchanged (lost write)."""
         for room, target in setpoints.items():
             entity_id = self._entities.get(room)
-            if entity_id is None or self._written.get(room) == target:
+            unchanged = self._written.get(room) == target
+            if entity_id is None or (unchanged and room not in force):
                 continue
+            before = self.observed(room)
             try:
                 await self._hass.services.async_call(
                     "climate",
@@ -43,7 +72,14 @@ class TrvAdapter:
             except Exception:  # noqa: BLE001 - service errors are not typed
                 _LOGGER.exception("Setting %s to %s failed; retrying next cycle", entity_id, target)
                 continue
+            if not unchanged:
+                prior = before if before is not None else self._written.get(room)
+                if prior is None:
+                    self._previous.pop(room, None)
+                else:
+                    self._previous[room] = prior
             self._written[room] = target
+            self._written_at[room] = datetime.now(timezone.utc)
 
     async def async_push_external_temperature(
         self, pushes: Mapping[str, float], z2m_names: Mapping[str, str]

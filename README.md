@@ -89,9 +89,15 @@ lovelace:
 
 Target precedence per room: **Boost > open-window pause > Vacation > Away > schedule (with pre-heat) > setback**. The boiler is called only for rooms whose target is comfort and whose temperature is below it by more than the hysteresis. All decision logic lives in a pure Python engine (`custom_components/smart_heating/engine/`) with no Home Assistant imports, tested with a fake clock. See `GLOSSARY.md`, `docs/adr/` and `docs/design.md`.
 
+## If you change something by hand
+
+- **Radiator valve (TRV):** a temperature you set on the valve stays until that room's target next changes (for example when its schedule moves on); then the integration takes over again.
+- **Lost TRV writes:** if the valve never took the temperature we sent, it is sent again (up to 3 times); if it still does not accept it you get an alert.
+- **EasyControl:** a temperature you set on the EasyControl is respected for 2 hours (configurable under advanced settings). After that the integration resumes and sets the temperature it wants.
+
 ## Assumptions
 
-The Bosch cloud and Zigbee timing could not be measured, so defaults were assumed and are all configurable: debounce 5 min, max one write per 2 min, 429 backoff 5→30 min, setpoint re-asserted after 30 min of drift, default pre-heat lead time 70 min. Details and how to verify each in `docs/research/phase0-findings.md`. Probe scripts to measure them live are in `scripts/phase0/`.
+The Bosch cloud and Zigbee timing could not be measured, so defaults were assumed and are all configurable: debounce 5 min, max one write per 2 min, 429 backoff 5→30 min, a hand change on the EasyControl respected for 2 h, a TRV write checked after 10 min, default pre-heat lead time 70 min. Details and how to verify each in `docs/research/phase0-findings.md`. Probe scripts to measure them live are in `scripts/phase0/`.
 
 ## License
 

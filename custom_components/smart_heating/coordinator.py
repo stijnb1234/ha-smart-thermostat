@@ -105,6 +105,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             self._last_seen.setdefault(room, now)  # grace period at startup
             bat = self.hass.states.get(battery_entity(trv_entity))
             battery[room] = bat is not None and battery_is_low(bat.state, self._battery_low_percent)
+        trv_entities = self._shared["trv_entities"]
         vacation = self._shared["vacation"]
         outdoor = self._reading(self._opts.get(CONF_OUTDOOR_ENTITY))
         return Snapshot(
@@ -119,6 +120,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             outdoor_temp=outdoor.value if outdoor else None,
             last_write=self._ec.last_write if self._ec else None,
             easycontrol_observed=self._ec.observed_setpoint if self._ec else None,
+            trv_observed={
+                room: v for room in trv_entities if (v := self._trv.observed(room)) is not None
+            },
         )
 
     async def _async_update_data(self) -> Cycle:
@@ -143,7 +147,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         # Independent steps: one failing write must not skip the rest of the cycle.
         await run_isolated(
             [
-                ("trv setpoints", lambda: self._trv.async_apply(decision.trv_setpoints)),
+                ("trv setpoints", lambda: self._trv.async_apply(decision.trv_setpoints, decision.trv_rewrite)),
                 ("external temperature", push),
                 ("easycontrol", boiler),
                 ("alerts", lambda: self.alerts.async_apply(decision.alerts)),
@@ -155,6 +159,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             self._trv.written,
             self._ec.commands if self._ec else Commands(),
             pushed,
+            self._trv.written_at,
+            self._trv.previous,
         )
         if self.controller.take_learner_dirty():
             await self._store.async_save(self._learner)

@@ -206,32 +206,85 @@ def test_hysteresis_is_configurable(clock):
     assert decide(inp).easycontrol_setpoint == HIGH
 
 
-def _observed(clock, observed, held_ago, last_write=None):
+def _observed(clock, observed, held_ago, last_write=None, hold_ago=None, hold_for=None, setpoint=HIGH, temps=None):
     from dataclasses import replace
 
-    inp = make_input(clock, {"office": 15.0}, held(clock, HIGH, held_ago), last_write)
+    cmds = held(clock, setpoint, held_ago)
+    if hold_for is not None:
+        cmds = replace(cmds, easycontrol_hold_until=clock.now() + timedelta(minutes=hold_for))
+    inp = make_input(clock, temps or {"office": 15.0}, cmds, last_write)
     return replace(inp, easycontrol_observed=observed)
 
 
-def test_drifted_setpoint_is_reasserted_after_thirty_minutes(clock):
-    d = decide(_observed(clock, observed=18.0, held_ago=31))
+# Manual change on the EasyControl: respected for a while, then we resume.
+# (Replaces the old "re-assert after 30 min of drift", which reverted a hand change within a minute or so.)
+
+
+def test_difference_right_after_our_write_is_not_yet_manual(clock):
+    d = decide(_observed(clock, observed=18.0, held_ago=9))
+
+    assert d.easycontrol_hold_until is None and not d.easycontrol_reassert
+    assert d.easycontrol_setpoint == HIGH
+
+
+def test_difference_after_settle_starts_a_two_hour_hold_without_writing(clock):
+    d = decide(_observed(clock, observed=18.0, held_ago=10))
+
+    assert d.easycontrol_hold_until == clock.now() + timedelta(hours=2)
+    assert d.easycontrol_setpoint == HIGH and not d.easycontrol_reassert
+
+
+def test_no_writes_during_hold_even_if_demand_changes(clock):
+    d = decide(_observed(clock, 18.0, 60, hold_for=60, temps={"office": 19.6, "bedroom": 19.6}))
+
+    assert d.easycontrol_setpoint == HIGH  # held value: adapter stays quiet
+    assert not d.easycontrol_reassert
+    assert d.easycontrol_hold_until == clock.now() + timedelta(minutes=60)
+
+
+def test_after_hold_a_differing_observed_setpoint_is_rewritten(clock):
+    d = decide(_observed(clock, 18.0, 130, hold_for=-1))
 
     assert d.easycontrol_setpoint == HIGH and d.easycontrol_reassert
+    assert d.easycontrol_hold_until is None
 
 
-def test_drift_is_not_reasserted_before_thirty_minutes(clock):
-    assert not decide(_observed(clock, observed=18.0, held_ago=20)).easycontrol_reassert
+def test_after_hold_a_changed_desire_is_written_normally(clock):
+    d = decide(_observed(clock, 18.0, 130, hold_for=-1, temps={"office": 19.6, "bedroom": 19.6}))
+
+    assert d.easycontrol_setpoint == LOW and d.easycontrol_hold_until is None
 
 
-def test_matching_observed_setpoint_is_not_reasserted(clock):
-    assert not decide(_observed(clock, observed=HIGH, held_ago=90)).easycontrol_reassert
-
-
-def test_unknown_observed_setpoint_is_not_reasserted(clock):
-    assert not decide(_observed(clock, observed=None, held_ago=90)).easycontrol_reassert
-
-
-def test_reassert_respects_backoff(clock):
+def test_after_hold_blocked_write_keeps_state_instead_of_new_hold(clock):
     result = WriteResult(at=clock.now(), status="rate_limited", consecutive_failures=1)
 
-    assert not decide(_observed(clock, 18.0, 90, result)).easycontrol_reassert
+    d = decide(_observed(clock, 18.0, 130, result, hold_for=-1))
+
+    assert not d.easycontrol_reassert
+    assert d.easycontrol_hold_until is not None and d.easycontrol_hold_until <= clock.now()
+
+
+def test_after_hold_matching_observed_clears_hold(clock):
+    d = decide(_observed(clock, HIGH, 130, hold_for=-1))
+
+    assert d.easycontrol_hold_until is None and not d.easycontrol_reassert
+
+
+def test_hold_length_and_settle_are_configurable(clock):
+    from dataclasses import replace
+
+    inp = _observed(clock, 18.0, 5)
+    cfg = replace(
+        inp.config, easycontrol_settle=timedelta(minutes=4), easycontrol_manual_hold=timedelta(hours=1)
+    )
+    d = decide(replace(inp, config=cfg))
+
+    assert d.easycontrol_hold_until == clock.now() + timedelta(hours=1)
+
+
+def test_matching_observed_setpoint_starts_no_hold(clock):
+    assert decide(_observed(clock, HIGH, 90)).easycontrol_hold_until is None
+
+
+def test_unknown_observed_setpoint_starts_no_hold(clock):
+    assert decide(_observed(clock, None, 90)).easycontrol_hold_until is None

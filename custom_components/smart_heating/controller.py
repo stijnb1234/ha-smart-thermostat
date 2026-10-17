@@ -8,7 +8,7 @@ No Home Assistant imports.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Collection, Mapping
 
@@ -49,6 +49,7 @@ class Snapshot:
     outdoor_temp: float | None
     last_write: WriteResult | None
     easycontrol_observed: float | None = None
+    trv_observed: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -117,6 +118,7 @@ class Controller:
             trv_temps=snap.trv,
             last_write=snap.last_write,
             easycontrol_observed=snap.easycontrol_observed,
+            trv_observed=snap.trv_observed,
             trv_last_seen=snap.trv_last_seen,
             battery_low=snap.battery_low,
             unmet_since=self._unmet,
@@ -151,6 +153,8 @@ class Controller:
         trv_written: Mapping[str, float],
         easycontrol: Commands,
         pushed_rooms: Collection[str] | None = None,
+        trv_written_at: Mapping[str, datetime] | None = None,
+        trv_previous: Mapping[str, float] | None = None,
     ) -> None:
         """Feed back what the adapters actually issued, for debounce and window pauses.
 
@@ -168,6 +172,11 @@ class Controller:
             trv_setpoints=dict(trv_written),
             easycontrol_setpoint=easycontrol.easycontrol_setpoint,
             easycontrol_changed_at=easycontrol.easycontrol_changed_at,
+            easycontrol_hold_until=cycle.decision.easycontrol_hold_until,
+            trv_written_at=dict(trv_written_at or {}),
+            trv_previous=dict(trv_previous or {}),
+            trv_retries=dict(cycle.decision.trv_retries),
+            trv_manual=dict(cycle.decision.trv_manual),
             external_temp_pushed=pushed,
             external_temp_pushed_at=pushed_at,
             window_paused_until=dict(cycle.decision.window_paused_until),

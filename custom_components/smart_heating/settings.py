@@ -15,6 +15,9 @@ from .const import (
     CONF_BOOST_MINUTES,
     CONF_DEBOUNCE_MINUTES,
     CONF_DEMAND_HYSTERESIS,
+    CONF_EASYCONTROL_MANUAL_HOLD_MINUTES,
+    CONF_EASYCONTROL_SETTLE_MINUTES,
+    CONF_TRV_SETTLE_MINUTES,
     CONF_EASYCONTROL_HIGH,
     CONF_EASYCONTROL_LOW,
     CONF_MANUAL_OVERRIDE_MINUTES,
@@ -53,6 +56,13 @@ def build_engine_config(rooms: tuple[RoomConfig, ...], options: Mapping[str, Any
         easycontrol_backoff_max=_minutes(
             options, CONF_BACKOFF_MAX_MINUTES, base.easycontrol_backoff_max
         ),
+        easycontrol_settle=_minutes(
+            options, CONF_EASYCONTROL_SETTLE_MINUTES, base.easycontrol_settle
+        ),
+        easycontrol_manual_hold=_minutes(
+            options, CONF_EASYCONTROL_MANUAL_HOLD_MINUTES, base.easycontrol_manual_hold
+        ),
+        trv_settle=_minutes(options, CONF_TRV_SETTLE_MINUTES, base.trv_settle),
         demand_hysteresis=float(options.get(CONF_DEMAND_HYSTERESIS, base.demand_hysteresis)),
         alerts=AlertConfig(
             trv_offline_after=_minutes(options, CONF_TRV_OFFLINE_MINUTES, alerts.trv_offline_after),

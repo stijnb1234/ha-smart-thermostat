@@ -5,6 +5,7 @@ from typing import Mapping
 
 from .alerts import compute_alerts
 from .boiler import easycontrol_setpoint, has_demand
+from .trv import check_trvs
 from .models import EPSILON, Decision, EngineInput, Reason, RoomConfig, ScheduleWindow
 from .overrides import boosted_rooms, manual_override_active
 from .presence import presence_setpoint
@@ -98,13 +99,18 @@ def decide(inp: EngineInput) -> Decision:
     demand = has_demand(inp.config, trv_setpoints, room_temps) or manual_override_active(
         inp.manual_overrides, inp.now
     )
-    ec_setpoint, reassert = easycontrol_setpoint(inp, demand)
+    ec_setpoint, reassert, ec_hold = easycontrol_setpoint(inp, demand)
+    trv = check_trvs(inp, trv_setpoints)
     return Decision(
         trv_setpoints=trv_setpoints,
         easycontrol_setpoint=ec_setpoint,
         easycontrol_reassert=reassert,
+        easycontrol_hold_until=ec_hold,
+        trv_rewrite=trv.rewrite,
+        trv_manual=trv.manual,
+        trv_retries=trv.retries,
         reasons=reasons,
-        alerts=compute_alerts(inp),
+        alerts=(*compute_alerts(inp), *trv.alerts),
         room_temps=room_temps,
         external_temp_pushes=pushes,
         window_paused_until=paused,

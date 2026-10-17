@@ -51,29 +51,43 @@ def _blocked(inp: EngineInput) -> bool:
     return False
 
 
-def _drifted(inp: EngineInput, held: float) -> bool:
-    """The EasyControl reports something else than we last set, for long enough to re-assert."""
-    observed = inp.easycontrol_observed
-    if observed is None or abs(observed - held) < _DRIFT_TOLERANCE:
-        return False
-    changed_at = inp.last_commands.easycontrol_changed_at
-    return changed_at is None or inp.now - changed_at >= inp.config.easycontrol_reassert_after
-
-
-def easycontrol_setpoint(inp: EngineInput, demand: bool) -> tuple[float | None, bool]:
-    """(setpoint to hold, whether to re-write it even though unchanged).
+def easycontrol_setpoint(
+    inp: EngineInput, demand: bool
+) -> tuple[float | None, bool, datetime | None]:
+    """(setpoint to hold, whether to re-write it though unchanged, manual hold end).
 
     The setpoint is None when nothing is held yet and a first write is blocked
     (backoff or minimum interval), so the adapter stays quiet. While a change is
-    blocked the currently held setpoint is returned, so the adapter (which writes
-    only on change) stays quiet too.
+    blocked or a manual hold runs, the currently held setpoint is returned, so the
+    adapter (which writes only on change) stays quiet too.
+
+    A setpoint on the EasyControl that differs from what we set, `easycontrol_settle`
+    after our write, is a manual change: hold off writing for `easycontrol_manual_hold`.
+    When the hold ends and it still differs from the desired one, write the desired one.
     """
-    desired = inp.config.easycontrol_high if demand else inp.config.easycontrol_low
+    cfg, now = inp.config, inp.now
+    desired = cfg.easycontrol_high if demand else cfg.easycontrol_low
     held = inp.last_commands.easycontrol_setpoint
+    hold = inp.last_commands.easycontrol_hold_until
+    observed = inp.easycontrol_observed
     if held is None:
-        return (None, False) if _blocked(inp) else (desired, False)
+        return (None, False, None) if _blocked(inp) else (desired, False, None)
+    if hold is not None:
+        if now < hold:
+            return held, False, hold
+        if observed is not None and abs(observed - desired) >= _DRIFT_TOLERANCE:
+            # Hold over and still not what we want: write, or wait for the block to pass.
+            if _blocked(inp):
+                return held, False, hold
+            return desired, held == desired, None
+    changed_at = inp.last_commands.easycontrol_changed_at
+    if (
+        observed is not None
+        and abs(observed - held) >= _DRIFT_TOLERANCE
+        and changed_at is not None
+        and now - changed_at >= cfg.easycontrol_settle
+    ):
+        return held, False, now + cfg.easycontrol_manual_hold
     if held == desired:
-        if _drifted(inp, held) and not _blocked(inp):
-            return desired, True
-        return held, False
-    return (held, False) if _blocked(inp) else (desired, False)
+        return held, False, None
+    return (held, False, None) if _blocked(inp) else (desired, False, None)

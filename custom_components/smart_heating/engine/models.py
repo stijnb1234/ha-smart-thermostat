@@ -82,8 +82,13 @@ class EngineConfig:
     easycontrol_backoff_max: timedelta = timedelta(minutes=30)
     # At most one write per this interval, whatever the cause (also guards the first write).
     easycontrol_min_interval: timedelta = timedelta(minutes=2)
-    # Re-write the desired setpoint when the EasyControl reports another one for this long.
-    easycontrol_reassert_after: timedelta = timedelta(minutes=30)
+    # The EasyControl reporting another setpoint than we set, this long after our write,
+    # is a manual change: respected (no writes) for easycontrol_manual_hold.
+    easycontrol_settle: timedelta = timedelta(minutes=10)
+    easycontrol_manual_hold: timedelta = timedelta(hours=2)
+    # A TRV reporting another setpoint than we wrote, this long after our write, is either
+    # a lost write (retried, max 3 times) or a manual change (left alone until the target changes).
+    trv_settle: timedelta = timedelta(minutes=10)
     # Demand only when a comfort-heating Room is colder than target by more than this (degC).
     demand_hysteresis: float = 0.3
     alerts: AlertConfig = AlertConfig()
@@ -104,6 +109,14 @@ class Commands:
     trv_setpoints: Mapping[str, float] = field(default_factory=dict)
     easycontrol_setpoint: float | None = None
     easycontrol_changed_at: datetime | None = None
+    # While set and in the future, a manual change on the EasyControl is respected.
+    easycontrol_hold_until: datetime | None = None
+    # TRV write bookkeeping: when we wrote, the value the TRV held just before, retries of
+    # the current target, and Rooms whose TRV was changed by hand (value = target at that time).
+    trv_written_at: Mapping[str, datetime] = field(default_factory=dict)
+    trv_previous: Mapping[str, float] = field(default_factory=dict)
+    trv_retries: Mapping[str, int] = field(default_factory=dict)
+    trv_manual: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushed: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushed_at: Mapping[str, datetime] = field(default_factory=dict)
     window_paused_until: Mapping[str, datetime] = field(default_factory=dict)
@@ -149,6 +162,8 @@ class EngineInput:
     vacation_until: datetime | None = None
     # Setpoint the EasyControl currently reports (None when unknown), for re-asserting ours.
     easycontrol_observed: float | None = None
+    # Setpoint each TRV currently reports (missing when unavailable), for lost-write detection.
+    trv_observed: Mapping[str, float] = field(default_factory=dict)
     # Recent Room temperature readings per Room (oldest first) for window detection.
     temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
 
@@ -161,8 +176,15 @@ class Decision:
     trv_setpoints: Mapping[str, float]
     # None: nothing held yet and a first write is currently blocked (backoff); do not write.
     easycontrol_setpoint: float | None
-    # Write easycontrol_setpoint even though unchanged (the EasyControl drifted from it).
+    # Write easycontrol_setpoint even though unchanged (a manual hold ended and it still differs).
     easycontrol_reassert: bool = False
+    # End of the manual hold on the EasyControl (carried back via Commands); no writes before it.
+    easycontrol_hold_until: datetime | None = None
+    # Rooms whose TRV setpoint must be re-written although unchanged (lost write).
+    trv_rewrite: frozenset[str] = frozenset()
+    # Rooms left alone after a manual TRV change (room -> target at that time), and retry counts.
+    trv_manual: Mapping[str, float] = field(default_factory=dict)
+    trv_retries: Mapping[str, int] = field(default_factory=dict)
     # Why each Room has its target (the precedence ladder's winning rung).
     reasons: Mapping[str, Reason] = field(default_factory=dict)
     alerts: tuple[Alert, ...] = ()

@@ -133,3 +133,31 @@ def test_gather_helpers():
     assert z2m_name("climate.bedroom_trv") == "bedroom_trv"
     assert battery_entity("climate.bedroom_trv") == "sensor.bedroom_trv_battery"
     assert battery_is_low("15", 20.0) and not battery_is_low("80", 20.0) and not battery_is_low("unknown", 20.0)
+
+
+def test_manual_trv_change_is_fed_back_and_left_alone():
+    c = make()
+    cycle = c.step(snap(T0))
+    c.confirm(
+        cycle,
+        {"work": 16.0},
+        Commands(),
+        trv_written_at={"work": T0},
+        trv_previous={"work": 12.0},
+    )
+    later = T0 + timedelta(minutes=15)
+    cycle = c.step(snap(later, trv_observed={"work": 21.0}))
+    assert cycle.decision.trv_manual == {"work": 16.0} and not cycle.decision.trv_rewrite
+    c.confirm(cycle, {"work": 16.0}, Commands(), trv_written_at={"work": T0}, trv_previous={"work": 12.0})
+    cycle = c.step(snap(later + timedelta(minutes=5), trv_observed={"work": 21.0}))
+    assert cycle.decision.trv_manual == {"work": 16.0}
+
+
+def test_lost_trv_write_is_rewritten():
+    c = make()
+    cycle = c.step(snap(T0))
+    c.confirm(cycle, {"work": 16.0}, Commands(), trv_written_at={"work": T0}, trv_previous={"work": 12.0})
+
+    cycle = c.step(snap(T0 + timedelta(minutes=15), trv_observed={"work": 12.0}))
+
+    assert cycle.decision.trv_rewrite == frozenset({"work"})

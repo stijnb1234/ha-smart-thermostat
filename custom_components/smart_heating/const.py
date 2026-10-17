@@ -30,6 +30,11 @@ CONF_BACKOFF_BASE_MINUTES = "backoff_base_minutes"
 CONF_BACKOFF_MAX_MINUTES = "backoff_max_minutes"
 CONF_DEMAND_HYSTERESIS = "demand_hysteresis"
 
+# Manual changes.
+CONF_TRV_SETTLE_MINUTES = "trv_settle_minutes"
+CONF_EASYCONTROL_SETTLE_MINUTES = "easycontrol_settle_minutes"
+CONF_EASYCONTROL_MANUAL_HOLD_MINUTES = "easycontrol_manual_hold_minutes"
+
 # Alert thresholds.
 CONF_TRV_OFFLINE_MINUTES = "trv_offline_minutes"
 CONF_TARGET_WINDOW_HOURS = "target_window_hours"

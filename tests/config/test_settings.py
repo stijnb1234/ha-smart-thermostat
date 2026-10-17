@@ -50,3 +50,16 @@ def test_options_override_boiler_and_alert_policy():
 def test_timed_request_durations_are_configurable():
     assert boost_duration({"boost_minutes": 90}) == timedelta(minutes=90)
     assert manual_override_duration({"manual_override_minutes": 30}) == timedelta(minutes=30)
+
+
+def test_manual_change_options():
+    cfg = build_engine_config(
+        (),
+        {"trv_settle_minutes": 15, "easycontrol_settle_minutes": 20, "easycontrol_manual_hold_minutes": 180},
+    )
+
+    assert cfg.trv_settle == timedelta(minutes=15)
+    assert cfg.easycontrol_settle == timedelta(minutes=20)
+    assert cfg.easycontrol_manual_hold == timedelta(hours=3)
+    default = build_engine_config((), {})
+    assert (default.trv_settle, default.easycontrol_manual_hold) == (timedelta(minutes=10), timedelta(hours=2))
