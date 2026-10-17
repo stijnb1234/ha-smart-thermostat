@@ -2,6 +2,7 @@
 
 from .alerts import AlertChanges, AlertNotifier, track_unmet
 from .engine import decide, lead_time_for
+from .presence import vacation_end
 from .models import (
     AlertConfig,
     DEFAULT_LEAD_TIME,
@@ -43,4 +44,5 @@ __all__ = [
     "SensorReading",
     "WriteResult",
     "decide",
+    "vacation_end",
 ]

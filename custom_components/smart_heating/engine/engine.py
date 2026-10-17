@@ -8,6 +8,7 @@ from .boiler import easycontrol_setpoint, has_demand
 from .window import window_pauses
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
 from .overrides import boosted_rooms, manual_override_active
+from .presence import presence_setpoint
 
 
 def _window_active(window: ScheduleWindow, now: datetime) -> bool:
@@ -79,13 +80,18 @@ def decide(inp: EngineInput) -> Decision:
         if external and _needs_push(room.name, temp, inp):
             pushes[room.name] = temp
     boosted = boosted_rooms(inp.boosts, inp.now)  # top precedence
-    trv_setpoints = {
-        room.name: room.comfort
-        if room.name in boosted or _wants_comfort(room, inp.now, inp.learned)
-        else room.setback
-        for room in inp.config.rooms
-    }
-    # Precedence: Boost > window-open pause > everything else.
+    trv_setpoints = {}
+    for room in inp.config.rooms:
+        forced = presence_setpoint(room, inp)
+        if room.name in boosted:
+            trv_setpoints[room.name] = room.comfort
+        elif forced is not None:
+            trv_setpoints[room.name] = forced
+        elif _wants_comfort(room, inp.now, inp.learned):
+            trv_setpoints[room.name] = room.comfort
+        else:
+            trv_setpoints[room.name] = room.setback
+    # Precedence: Boost > window-open pause > Vacation > Away > schedule > setback.
     paused = {k: v for k, v in window_pauses(inp).items() if k not in boosted}
     for room in inp.config.rooms:
         if room.name in paused:
