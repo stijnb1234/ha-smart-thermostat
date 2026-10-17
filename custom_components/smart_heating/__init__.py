@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 
-PLATFORMS = ["button", "climate", "sensor", "number", "switch"]
+PLATFORMS = ["binary_sensor", "button", "climate", "sensor", "number", "switch"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -46,7 +46,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = SmartHeatingCoordinator(hass, entry, shared, learner_store, learner)
     shared["coordinator"] = coordinator
     await hass.async_add_executor_job(
-        _write_dashboard, hass.config.path(DASHBOARD_FILE), [r.name for r in shared["rooms"]]
+        _write_dashboard,
+        hass.config.path(DASHBOARD_FILE),
+        [r for r in rooms if not r.get("manual")],
     )
     from . import dashboard_panel
     from .report_glue import schedule_weekly_report
@@ -63,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-def _write_dashboard(path: str, rooms: list[str]) -> None:
+def _write_dashboard(path: str, rooms: list[dict]) -> None:
     from pathlib import Path
 
     Path(path).write_text(to_yaml(build_dashboard(rooms)), encoding="utf-8")

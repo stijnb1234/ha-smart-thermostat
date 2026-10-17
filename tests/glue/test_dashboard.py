@@ -5,7 +5,22 @@ from custom_components.smart_heating.dashboard import (
     to_yaml,
 )
 
-ROOMS = ["Living Room", "Work room"]
+ROOMS = [
+    {"name": "Living Room", "trv_entity": "climate.trv_living"},
+    {"name": "Work room", "trv_entity": "climate.trv_work"},
+]
+NAMES = [r["name"] for r in ROOMS]
+
+
+def view(d, path):
+    return next(v for v in d["views"] if v["path"] == path)
+
+
+def cards_of(v):
+    if "sections" in v:
+        return [c for sec in v["sections"] for c in sec["cards"]]
+    return v["cards"]
+
 
 
 def all_entities(node):
@@ -26,16 +41,88 @@ def test_slug_and_entity_ids():
     assert entity_id("switch", None, "vacation_mode") == "switch.smart_heating_vacation_mode"
 
 
-def test_dashboard_has_per_room_status_and_boost():
-    cards = [c for v in build_dashboard(ROOMS)["views"] for c in v["cards"]]
-    ents = set(all_entities(cards))
-    for room in ROOMS:
-        assert entity_id("climate", room) in ents
-        assert entity_id("sensor", room, "reason") in ents
-        assert entity_id("sensor", room, "next_change") in ents
-        assert entity_id("sensor", room, "lead_time") in ents
-        assert entity_id("button", room, "boost") in ents
-        assert entity_id("button", room, "cancel_boost") in ents
+def test_views_are_overview_rooms_help():
+    assert [v["path"] for v in build_dashboard(ROOMS)["views"]] == ["overview", "rooms", "help"]
+
+
+def test_rooms_view_has_one_section_per_room_with_entities_and_graph():
+    rooms_view = view(build_dashboard(ROOMS), "rooms")
+    assert len(rooms_view["sections"]) == len(ROOMS)
+    for room, section in zip(NAMES, rooms_view["sections"]):
+        ents = set(all_entities(section))
+        for ent in (
+            entity_id("climate", room),
+            entity_id("sensor", room, "summary"),
+            entity_id("sensor", room, "next_change"),
+            entity_id("sensor", room, "lead_time"),
+            entity_id("button", room, "boost"),
+            entity_id("button", room, "cancel_boost"),
+        ):
+            assert ent in ents
+        assert entity_id("sensor", room, "reason") not in ents  # raw reason is not shown
+        graphs = [c for c in section["cards"] if c["type"] == "history-graph"]
+        assert graphs and graphs[0]["hours_to_show"] == 24
+
+
+def test_trv_technical_entities_derived_from_trv_entity():
+    section = view(build_dashboard(ROOMS), "rooms")["sections"][1]
+    ents = set(all_entities(section))
+    assert {
+        "sensor.trv_work_battery",
+        "number.trv_work_valve_position",
+        "sensor.trv_work_pi_heating_demand",
+    } <= ents
+
+
+def test_room_without_trv_has_no_technical_card_and_names_still_work():
+    d = build_dashboard(["Hall", {"name": "Study"}])
+    ents = set(all_entities(d))
+    assert entity_id("climate", "Hall") in ents and entity_id("climate", "Study") in ents
+    assert not any("battery" in e for e in ents)
+
+
+def test_overview_has_status_boiler_alerts_controls():
+    ov = view(build_dashboard(ROOMS), "overview")
+    ents = set(all_entities(ov))
+    assert {
+        "binary_sensor.smart_heating_boiler_call",
+        "sensor.smart_heating_boiler_demand_rooms",
+        "sensor.smart_heating_boiler_target",
+        "sensor.smart_heating_boiler_last_write",
+        "sensor.smart_heating_boiler_write_result",
+        "sensor.smart_heating_boiler_backoff",
+    } <= ents
+    text = str(ov)
+    assert "sensor.smart_heating_status" in text
+    assert "sensor.smart_heating_active_alerts" in text
+
+
+def test_alerts_card_only_shown_when_alerts_exist():
+    cards = cards_of(view(build_dashboard(ROOMS), "overview"))
+    cond = [c for c in cards if c["type"] == "conditional"]
+    assert len(cond) == 1
+    assert cond[0]["conditions"] == [
+        {"entity": "sensor.smart_heating_active_alerts", "state_not": "0"}
+    ]
+
+
+def test_only_standard_cards():
+    allowed = {
+        "entities", "markdown", "glance", "tile", "grid", "history-graph",
+        "conditional", "vertical-stack", "horizontal-stack", "heading", "sections",
+    }
+
+    def types(node):
+        if isinstance(node, dict):
+            if "type" in node:
+                yield node["type"]
+            for v in node.values():
+                yield from types(v)
+        elif isinstance(node, list):
+            for v in node:
+                yield from types(v)
+
+    assert set(types(build_dashboard(ROOMS))) <= allowed
 
 
 def test_dashboard_has_vacation_manual_override_and_options_link():

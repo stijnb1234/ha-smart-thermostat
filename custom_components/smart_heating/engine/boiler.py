@@ -11,22 +11,37 @@ from .models import EPSILON, EngineConfig, EngineInput, WriteResult
 _DRIFT_TOLERANCE = 0.05
 
 
+def demand_rooms(
+    config: EngineConfig,
+    trv_setpoints: Mapping[str, float],
+    room_temps: Mapping[str, float],
+) -> tuple[str, ...]:
+    """Rooms heating to comfort that are colder than target by more than the hysteresis.
+
+    Rooms at setback or frost-hold never call for heat: they are allowed to
+    drift down and the boiler should not fire for a few tenths of a degree.
+    """
+    return tuple(
+        room.name
+        for room in config.rooms
+        if room.name in room_temps
+        and trv_setpoints[room.name] >= room.comfort - EPSILON
+        and room_temps[room.name] < trv_setpoints[room.name] - config.demand_hysteresis
+    )
+
+
 def has_demand(
     config: EngineConfig,
     trv_setpoints: Mapping[str, float],
     room_temps: Mapping[str, float],
 ) -> bool:
-    """True if a Room heating to comfort is colder than its target by more than the hysteresis.
+    """True if any Room has unmet demand (see demand_rooms)."""
+    return bool(demand_rooms(config, trv_setpoints, room_temps))
 
-    Rooms at setback or frost-hold never call for heat: they are allowed to
-    drift down and the boiler should not fire for a few tenths of a degree.
-    """
-    return any(
-        room.name in room_temps
-        and trv_setpoints[room.name] >= room.comfort - EPSILON
-        and room_temps[room.name] < trv_setpoints[room.name] - config.demand_hysteresis
-        for room in config.rooms
-    )
+
+def backoff_delay(config: EngineConfig, result: WriteResult) -> timedelta:
+    """How long after a failed write the next attempt is held back."""
+    return _backoff(config, result)
 
 
 def _backoff(config: EngineConfig, result: WriteResult) -> timedelta:

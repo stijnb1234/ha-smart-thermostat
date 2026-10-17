@@ -169,6 +169,8 @@ class Decision:
     room_temps: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushes: Mapping[str, float] = field(default_factory=dict)
     window_paused_until: Mapping[str, datetime] = field(default_factory=dict)
+    # Rooms whose unmet demand calls for the boiler (manual override not included).
+    demand_rooms: tuple[str, ...] = ()
 
 
 ALL_DAYS = frozenset(range(7))
