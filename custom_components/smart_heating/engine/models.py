@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import Literal, Mapping
 
-DEFAULT_LEAD_TIME = timedelta(minutes=70)
+from .overrides import Boost, ManualRoomOverride
+
+DEFAULT_LEAD_TIME =timedelta(minutes=70)
 
 
 @dataclass(frozen=True)
@@ -99,6 +101,8 @@ class EngineInput:
     external_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     trv_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     last_write: WriteResult | None = None
+    boosts: Mapping[str, Boost] = field(default_factory=dict)
+    manual_overrides: Mapping[str, ManualRoomOverride] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

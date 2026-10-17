@@ -5,6 +5,7 @@ from typing import Mapping
 
 from .boiler import easycontrol_setpoint, has_demand
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
+from .overrides import boosted_rooms, manual_override_active
 
 
 def _window_active(window: ScheduleWindow, now: datetime) -> bool:
@@ -75,11 +76,16 @@ def decide(inp: EngineInput) -> Decision:
         room_temps[room.name] = temp
         if external and _needs_push(room.name, temp, inp):
             pushes[room.name] = temp
+    boosted = boosted_rooms(inp.boosts, inp.now)  # top precedence
     trv_setpoints = {
-        room.name: room.comfort if _wants_comfort(room, inp.now, inp.learned) else room.setback
+        room.name: room.comfort
+        if room.name in boosted or _wants_comfort(room, inp.now, inp.learned)
+        else room.setback
         for room in inp.config.rooms
     }
-    demand = has_demand(inp.config, trv_setpoints, room_temps)
+    demand = has_demand(inp.config, trv_setpoints, room_temps) or manual_override_active(
+        inp.manual_overrides, inp.now
+    )
     return Decision(
         trv_setpoints=trv_setpoints,
         easycontrol_setpoint=easycontrol_setpoint(inp, demand),
