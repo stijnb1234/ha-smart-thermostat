@@ -1,0 +1,12 @@
+{
+  "domain": "smart_heating",
+  "name": "Smart Heating",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/stijn/homeassistent-smart-thermostat",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/stijn/homeassistent-smart-thermostat/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
