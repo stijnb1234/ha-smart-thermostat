@@ -64,3 +64,31 @@ def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanati
         )
     assert end is not None
     return Explanation(reason, target, end, _schedule_target(room, inp, end))
+
+
+def _degrees(value: float) -> str:
+    return f"{value:g} degrees"
+
+
+def _when(at: datetime, now: datetime) -> str:
+    """Clock time for today, weekday and time for later days (`at` and `now` in local time)."""
+    return at.strftime("%H:%M") if at.date() == now.date() else at.strftime("%a %H:%M")
+
+
+def summarize(e: Explanation, now: datetime) -> str:
+    """One plain sentence for the dashboard; the reason sensor stays the machine value."""
+    end = _when(e.next_change_at, now) if e.next_change_at else None
+    if e.reason == "boost":
+        return f"Boost until {end}" if end else "Boost"
+    if e.reason == "window":
+        return f"Window seems open, heating paused until {end}" if end else "Window seems open"
+    if e.reason == "vacation":
+        until = f"Vacation until {end}" if end else "Vacation"
+        return f"{until}, kept at {_degrees(e.target)}"
+    if e.reason == "away":
+        return f"Nobody home, kept at {_degrees(e.target)}"
+    if e.reason == "pre_heat":
+        return f"Warming up, warm until {end}" if end else "Warming up"
+    if e.reason == "schedule":
+        return f"Warm until {end}" if end else "Warm"
+    return f"Warm from {end}" if end else f"Kept at {_degrees(e.target)}"

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Mapping
 
 from .alerts import compute_alerts
-from .boiler import easycontrol_setpoint, has_demand
+from .boiler import demand_rooms, easycontrol_setpoint
 from .trv import check_trvs
 from .models import EPSILON, Decision, EngineInput, Reason, RoomConfig, ScheduleWindow
 from .overrides import boosted_rooms, manual_override_active
@@ -96,7 +96,8 @@ def decide(inp: EngineInput) -> Decision:
     reasons: dict[str, Reason] = {}
     for room in inp.config.rooms:
         trv_setpoints[room.name], reasons[room.name] = _target(room, inp, boosted, paused)
-    demand = has_demand(inp.config, trv_setpoints, room_temps) or manual_override_active(
+    calling = demand_rooms(inp.config, trv_setpoints, room_temps)
+    demand = bool(calling) or manual_override_active(
         inp.manual_overrides, inp.now
     )
     ec_setpoint, reassert, ec_hold = easycontrol_setpoint(inp, demand)
@@ -114,4 +115,5 @@ def decide(inp: EngineInput) -> Decision:
         room_temps=room_temps,
         external_temp_pushes=pushes,
         window_paused_until=paused,
+        demand_rooms=calling,
     )

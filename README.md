@@ -17,7 +17,7 @@ Room-by-room heating for Home Assistant. One boiler, several radiators: the boil
 - **Away / Vacation**: everyone away drops rooms to setback; long absence or Vacation mode holds frost-hold and returns before you arrive.
 - **Boost** buttons per room and a **Manual-room override** for rooms with dumb radiator valves.
 - **Alerts** (TRV offline, low battery, room never reaches target, Bosch outage, stale sensor) and a **weekly gas report** (m³ per heating-degree-day vs last year).
-- A generated **dashboard** showing each room's state, target, why it is heating and the next change.
+- A generated **dashboard** with a plain-language overview (who is heating, boiler status, alerts), a page per room and a help page.
 
 Not controlled: floor heating, dumb TRVs (except through the Manual-room override), door-aware zones. See `.scratch/smart-heating/spec.md`.
 
@@ -66,11 +66,11 @@ Changes apply without restarting Home Assistant.
 
 ## Entities
 
-Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, sensors for *reason*, *next change* and *lead time*, Boost and cancel-boost `button`s. System-wide: a Vacation `switch` and days `number`, and Manual-room override start and cancel `button`s.
+Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, sensors for *reason* (machine value), *summary* (plain sentence, e.g. "Warm from 17:00"), *next change* and *lead time*, Boost and cancel-boost `button`s. System-wide: a Vacation `switch` and days `number`, and Manual-room override start and cancel `button`s. Status entities: `sensor.smart_heating_status`, `sensor.smart_heating_active_alerts` (count, plain-language `messages` attribute), `binary_sensor.smart_heating_boiler_call` and `sensor.smart_heating_boiler_*` (`demand_rooms`, `target`, `last_write`, `write_result`, `backoff`).
 
 ## Dashboard
 
-On setup the integration writes `smart_heating_dashboard.yaml` into your Home Assistant config folder and registers it as a **Smart Heating** dashboard in the sidebar. Nothing to configure. Schedules are edited through the integration's Configure dialog (linked from the dashboard).
+On setup the integration writes `smart_heating_dashboard.yaml` into your Home Assistant config folder and registers it as a **Smart Heating** dashboard in the sidebar. Nothing to configure. Pages: **Overview** (status, boiler, alerts when there are any, controls), **Rooms** (one section per room with a 24 hour temperature graph and, secondary, the radiator valve's battery and valve opening, assumed to be `sensor.<name>_battery`, `number.<name>_valve_position`, `sensor.<name>_pi_heating_demand`) and **Help**. Schedules are edited through the integration's Configure dialog (linked from the dashboard).
 
 The registration uses Home Assistant internals, so if it ever fails (see the log) register the file by hand in `configuration.yaml`:
 
