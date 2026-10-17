@@ -14,6 +14,7 @@ from .models import (
     ScheduleWindow,
     SensorConfig,
     SensorReading,
+    WriteResult,
 )
 
 __all__ = [
@@ -30,5 +31,6 @@ __all__ = [
     "ScheduleWindow",
     "SensorConfig",
     "SensorReading",
+    "WriteResult",
     "decide",
 ]

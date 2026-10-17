@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
-from typing import Mapping
+from typing import Literal, Mapping
 
 DEFAULT_LEAD_TIME = timedelta(minutes=70)
 
@@ -48,6 +48,10 @@ class EngineConfig:
     easycontrol_low: float
     easycontrol_high: float
     sensors: SensorConfig = SensorConfig()
+    # Boiler call policy (docs/research/phase0-findings.md, all configurable).
+    easycontrol_debounce: timedelta = timedelta(minutes=5)
+    easycontrol_backoff_base: timedelta = timedelta(minutes=5)
+    easycontrol_backoff_max: timedelta = timedelta(minutes=30)
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,16 @@ class Commands:
 
 
 @dataclass(frozen=True)
+class WriteResult:
+    """Outcome of the adapter's latest EasyControl write attempt."""
+
+    at: datetime
+    status: Literal["ok", "rate_limited", "error"]
+    retry_after: timedelta | None = None
+    consecutive_failures: int = 0
+
+
+@dataclass(frozen=True)
 class Alert:
     code: str
     room: str | None = None
@@ -84,6 +98,7 @@ class EngineInput:
     last_commands: Commands
     external_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     trv_temps: Mapping[str, SensorReading] = field(default_factory=dict)
+    last_write: WriteResult | None = None
 
 
 @dataclass(frozen=True)
