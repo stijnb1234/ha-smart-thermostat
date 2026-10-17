@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Mapping
 
 from .boiler import easycontrol_setpoint, has_demand
+from .window import window_pauses
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
 from .overrides import boosted_rooms, manual_override_active
 
@@ -83,6 +84,11 @@ def decide(inp: EngineInput) -> Decision:
         else room.setback
         for room in inp.config.rooms
     }
+    # Precedence: Boost > window-open pause > everything else.
+    paused = {k: v for k, v in window_pauses(inp).items() if k not in boosted}
+    for room in inp.config.rooms:
+        if room.name in paused:
+            trv_setpoints[room.name] = room.frost_hold
     demand = has_demand(inp.config, trv_setpoints, room_temps) or manual_override_active(
         inp.manual_overrides, inp.now
     )
@@ -91,4 +97,5 @@ def decide(inp: EngineInput) -> Decision:
         easycontrol_setpoint=easycontrol_setpoint(inp, demand),
         room_temps=room_temps,
         external_temp_pushes=pushes,
+        window_paused_until=paused,
     )
