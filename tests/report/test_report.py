@@ -1,0 +1,60 @@
+from datetime import datetime, timedelta
+
+from custom_components.smart_heating.report import (
+    build_report,
+    heated_hours,
+    heating_degree_days,
+)
+
+
+def test_hdd_sums_only_days_below_base():
+    assert heating_degree_days([10.0, 20.0, 18.0, 16.5], base=18.0) == 9.5
+
+
+def test_hdd_base_is_configurable():
+    assert heating_degree_days([10.0], base=15.0) == 5.0
+
+
+def test_heated_hours_from_samples():
+    t0 = datetime(2026, 10, 12, 6, 0)
+    samples = [
+        (t0, True),
+        (t0 + timedelta(hours=2), False),
+        (t0 + timedelta(hours=5), True),
+    ]
+    end = t0 + timedelta(hours=6)
+    assert heated_hours(samples, end) == 3.0
+
+
+def test_report_compares_m3_per_hdd_with_last_year():
+    r = build_report(
+        gas_m3=60.0, temps=[8.0] * 6,  # 60 HDD -> 1.0 m3/HDD
+        last_gas_m3=90.0, last_temps=[8.0] * 6,  # 1.5 m3/HDD
+        room_hours={"Living": 40.5, "Bedroom": 10.0},
+        issues=["Bedroom TRV offline"],
+    )
+    assert r.m3_per_hdd == 1.0
+    assert r.last_year_m3_per_hdd == 1.5
+    assert round(r.change_pct) == -33
+    text = r.format()
+    assert "1.00 m3/HDD" in text
+    assert "last year: 1.50" in text
+    assert "-33%" in text
+    assert "Living: 40.5 h" in text
+    assert "Bedroom TRV offline" in text
+
+
+def test_report_handles_missing_last_year():
+    r = build_report(gas_m3=60.0, temps=[8.0] * 6, last_gas_m3=None, last_temps=[],
+                     room_hours={}, issues=[])
+    assert r.last_year_m3_per_hdd is None and r.change_pct is None
+    text = r.format()
+    assert "no data for last year" in text.lower()
+    assert "No issues" in text
+
+
+def test_report_handles_missing_gas_or_zero_hdd():
+    r = build_report(gas_m3=None, temps=[8.0], last_gas_m3=5.0, last_temps=[20.0],
+                     room_hours={}, issues=[])
+    assert r.m3_per_hdd is None and r.last_year_m3_per_hdd is None
+    assert "no gas data" in r.format().lower()

@@ -12,7 +12,10 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import CONF_ROOMS, DOMAIN
+from .const import CONF_GAS_ENTITY, CONF_HDD_BASE, CONF_OUTDOOR_ENTITY, CONF_ROOMS, DOMAIN
+from .report import DEFAULT_HDD_BASE
+
+REPORT_KEYS = (CONF_GAS_ENTITY, CONF_OUTDOOR_ENTITY, CONF_HDD_BASE)
 from .rooms import (
     DEFAULT_COMFORT,
     DEFAULT_FROST_HOLD,
@@ -90,6 +93,18 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
     def __init__(self) -> None:
         self._rooms: list[dict[str, Any]] | None = None
         self._editing: str | None = None
+        self._settings_cache: dict[str, Any] | None = None
+
+    @property
+    def _settings(self) -> dict[str, Any]:
+        if self._settings_cache is None:
+            opts = self.config_entry.options
+            self._settings_cache = {k: opts[k] for k in REPORT_KEYS if k in opts}
+        return self._settings_cache
+
+    @_settings.setter
+    def _settings(self, value: dict[str, Any]) -> None:
+        self._settings_cache = value
 
     @property
     def rooms(self) -> list[dict[str, Any]]:
@@ -101,11 +116,35 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         options = ["add_room"]
         if self.rooms:
             options += ["edit_room", "remove_room"]
-        options.append("save")
+        options += ["report_settings", "save"]
         return self.async_show_menu(step_id="init", menu_options=options)
 
+    async def async_step_report_settings(self, user_input=None):
+        current = self._settings
+        if user_input is not None:
+            self._settings = {k: v for k, v in user_input.items() if v not in (None, "")}
+            return await self.async_step_init()
+
+        def opt(key, default=None):
+            return vol.Optional(key, description={"suggested_value": current.get(key, default)})
+
+        schema = vol.Schema(
+            {
+                opt(CONF_GAS_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor", device_class="gas")
+                ),
+                opt(CONF_OUTDOOR_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
+                ),
+                opt(CONF_HDD_BASE, DEFAULT_HDD_BASE): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=10, max=25, step=0.5, unit_of_measurement="°C")
+                ),
+            }
+        )
+        return self.async_show_form(step_id="report_settings", data_schema=schema)
+
     async def async_step_save(self, user_input=None):
-        return self.async_create_entry(data={CONF_ROOMS: self.rooms})
+        return self.async_create_entry(data={CONF_ROOMS: self.rooms, **self._settings})
 
     async def async_step_add_room(self, user_input=None):
         errors: dict[str, str] = {}

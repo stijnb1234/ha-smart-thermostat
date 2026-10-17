@@ -1,2 +1,5 @@
 DOMAIN = "smart_heating"
 CONF_ROOMS = "rooms"
+CONF_GAS_ENTITY = "gas_entity"
+CONF_OUTDOOR_ENTITY = "outdoor_entity"
+CONF_HDD_BASE = "hdd_base"

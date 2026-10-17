@@ -18,7 +18,17 @@
           "add_room": "Add a room",
           "edit_room": "Edit a room",
           "remove_room": "Remove a room",
+          "report_settings": "Gas report settings",
           "save": "Save and close"
+        }
+      },
+      "report_settings": {
+        "title": "Gas report settings",
+        "description": "Weekly report on Mondays. Compares m3 per heating-degree-day with the same week last year (needs recorder long-term statistics for both entities).",
+        "data": {
+          "gas_entity": "Gas meter (m3, total increasing)",
+          "outdoor_entity": "Outdoor temperature sensor",
+          "hdd_base": "Heating-degree-day base temperature"
         }
       },
       "add_room": {

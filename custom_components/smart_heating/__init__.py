@@ -20,6 +20,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "trv_entities": trv_entities(rooms),
         "sensor_entities": sensor_entities(rooms),
     }
+    from .report_glue import schedule_weekly_report
+
+    entry.async_on_unload(schedule_weekly_report(hass, entry))
     # Options changes reload the entry, so edits apply without restarting HA.
     entry.async_on_unload(entry.add_update_listener(_async_reload_on_change))
     return True
