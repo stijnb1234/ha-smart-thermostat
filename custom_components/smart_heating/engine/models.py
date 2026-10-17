@@ -49,6 +49,15 @@ class SensorConfig:
 
 
 @dataclass(frozen=True)
+class AlertConfig:
+    """Alert thresholds from docs/research/phase0-findings.md, all configurable."""
+
+    trv_offline_after: timedelta = timedelta(minutes=60)
+    target_window: timedelta = timedelta(hours=3)
+    outage_after_failures: int = 3
+
+
+@dataclass(frozen=True)
 class EngineConfig:
     rooms: tuple[RoomConfig, ...]
     easycontrol_low: float
@@ -58,6 +67,7 @@ class EngineConfig:
     easycontrol_debounce: timedelta = timedelta(minutes=5)
     easycontrol_backoff_base: timedelta = timedelta(minutes=5)
     easycontrol_backoff_max: timedelta = timedelta(minutes=30)
+    alerts: AlertConfig = AlertConfig()
 
 
 @dataclass(frozen=True)
@@ -106,6 +116,11 @@ class EngineInput:
     external_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     trv_temps: Mapping[str, SensorReading] = field(default_factory=dict)
     last_write: WriteResult | None = None
+    # Alert inputs: last TRV state report, low-battery flags, since when a Room is below target.
+    trv_last_seen: Mapping[str, datetime] = field(default_factory=dict)
+    battery_low: Mapping[str, bool] = field(default_factory=dict)
+    unmet_since: Mapping[str, datetime] = field(default_factory=dict)
+
     # Recent Room temperature readings per Room (oldest first) for window detection.
     temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Mapping
 
+from .alerts import bosch_outage, compute_alerts
 from .boiler import easycontrol_setpoint, has_demand
 from .window import window_pauses
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
@@ -85,9 +86,15 @@ def decide(inp: EngineInput) -> Decision:
         if room.name in paused:  # precedence: Boost > window-open pause > everything else
             trv_setpoints[room.name] = room.frost_hold
     demand = has_demand(inp.config, trv_setpoints, room_temps)
+    ec_setpoint = easycontrol_setpoint(inp, demand)
+    if bosch_outage(inp):
+        # Safe fallback: TRVs keep their last setpoints. EasyControl writes stay
+        # throttled by the backoff in boiler.py, which doubles as the recovery probe.
+        trv_setpoints = {**trv_setpoints, **inp.last_commands.trv_setpoints}
     return Decision(
         trv_setpoints=trv_setpoints,
-        easycontrol_setpoint=easycontrol_setpoint(inp, demand),
+        easycontrol_setpoint=ec_setpoint,
+        alerts=compute_alerts(inp),
         room_temps=room_temps,
         external_temp_pushes=pushes,
         window_paused_until=paused,
