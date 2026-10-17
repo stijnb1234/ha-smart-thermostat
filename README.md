@@ -66,7 +66,7 @@ Changes apply without restarting Home Assistant.
 
 ## Entities
 
-Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, sensors for *reason*, *next change* and *lead time*, and a Boost `button`. System-wide: a Vacation `switch` and days `number`, and a Manual-room override `button`.
+Per room (`<domain>.smart_heating_<room>[_<key>]`): a read-only `climate`, sensors for *reason*, *next change* and *lead time*, Boost and cancel-boost `button`s. System-wide: a Vacation `switch` and days `number`, and Manual-room override start and cancel `button`s.
 
 ## Dashboard
 

@@ -1,4 +1,4 @@
-"""Thin HA glue: a Boost button per Room and a Manual-room override button.
+"""Thin HA glue: Boost and cancel-Boost buttons per Room, and Manual-room override start/cancel buttons.
 
 Pressing a button records a start time and the configured duration in the entry's shared
 `boosts` / `manual_overrides` dicts; the coordinator passes those to the engine,
@@ -38,6 +38,34 @@ class BoostButton(ButtonEntity):
         await _refresh(self._state)
 
 
+class CancelBoostButton(ButtonEntity):
+    _attr_has_entity_name = True
+
+    def __init__(self, entry_id: str, room: str, state: dict) -> None:
+        self._room, self._state = room, state
+        self._attr_name = f"{room} cancel boost"
+        self._attr_unique_id = f"{entry_id}_cancel_boost_{room}"
+        self.entity_id = entity_id("button", room, "cancel_boost")
+
+    async def async_press(self) -> None:
+        self._state["boosts"].pop(self._room, None)
+        await _refresh(self._state)
+
+
+class CancelManualRoomOverrideButton(ButtonEntity):
+    _attr_has_entity_name = True
+    _attr_name = "Cancel manual room override"
+    entity_id = "button.smart_heating_cancel_manual_room_override"
+
+    def __init__(self, entry_id: str, state: dict) -> None:
+        self._state = state
+        self._attr_unique_id = f"{entry_id}_cancel_manual_room_override"
+
+    async def async_press(self) -> None:
+        self._state["manual_overrides"].pop(MANUAL_OVERRIDE_KEY, None)
+        await _refresh(self._state)
+
+
 class ManualRoomOverrideButton(ButtonEntity):
     _attr_has_entity_name = True
     _attr_name = "Manual room override"
@@ -66,5 +94,7 @@ async def async_setup_entry(
 ) -> None:
     state = hass.data[DOMAIN][entry.entry_id]
     entities = [BoostButton(entry.entry_id, r.name, state) for r in state["rooms"]]
+    entities += [CancelBoostButton(entry.entry_id, r.name, state) for r in state["rooms"]]
     entities.append(ManualRoomOverrideButton(entry.entry_id, state))
+    entities.append(CancelManualRoomOverrideButton(entry.entry_id, state))
     async_add_entities(entities)

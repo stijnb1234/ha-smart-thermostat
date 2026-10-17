@@ -29,6 +29,27 @@ def entity_id(domain: str, room: str | None, key: str | None = None) -> str:
     return f"{domain}.{'_'.join(parts)}"
 
 
+HELP_CONTENT = """\
+**Why** shows which rule sets a room's current target (strongest first):
+
+| Why | Meaning |
+|---|---|
+| boost | You pressed Boost: comfort until it expires or you cancel it. |
+| window | A fast temperature drop looks like an open window; heating is paused for 15-30 min. |
+| vacation | Vacation mode is on: frost-hold (12 °C). |
+| away | Nobody is home: setback, or frost-hold after a long absence. |
+| pre_heat | Heating early so the room is warm when its schedule starts. |
+| schedule | Inside a comfort window: comfort temperature. |
+| setback | Nothing asks for heat: the lower setback temperature. |
+
+**Next change** is when the target changes next and what it becomes.
+**Pre-heat lead time** is how long before a schedule the room starts heating (learned over time).
+
+The boiler fires (EasyControl setpoint raised) only while a room at comfort is colder than its target.
+**Manual room override** fires the boiler for rooms with dumb radiator valves; cancel it with its cancel button.
+"""
+
+
 def _room_card(room: str) -> dict[str, Any]:
     return {
         "type": "entities",
@@ -39,6 +60,7 @@ def _room_card(room: str) -> dict[str, Any]:
             {"entity": entity_id("sensor", room, "next_change"), "name": "Next change"},
             {"entity": entity_id("sensor", room, "lead_time"), "name": "Pre-heat lead time"},
             {"entity": entity_id("button", room, "boost"), "name": "Boost"},
+            {"entity": entity_id("button", room, "cancel_boost"), "name": "Cancel boost"},
         ],
     }
 
@@ -52,6 +74,7 @@ def build_dashboard(rooms: Iterable[str]) -> dict[str, Any]:
             {"entity": entity_id("switch", None, "vacation_mode")},
             {"entity": entity_id("number", None, "vacation_days")},
             {"entity": entity_id("button", None, "manual_room_override")},
+            {"entity": entity_id("button", None, "cancel_manual_room_override")},
         ],
     }
     schedules = {
@@ -62,6 +85,7 @@ def build_dashboard(rooms: Iterable[str]) -> dict[str, Any]:
             f"[Smart Heating options]({OPTIONS_LINK}) (Configure, Edit a room)."
         ),
     }
+    help_card = {"type": "markdown", "title": "How to read this", "content": HELP_CONTENT}
     return {
         "title": "Smart Heating",
         "views": [
@@ -69,7 +93,7 @@ def build_dashboard(rooms: Iterable[str]) -> dict[str, Any]:
                 "title": "Heating",
                 "path": "heating",
                 "icon": "mdi:radiator",
-                "cards": [*map(_room_card, rooms), controls, schedules],
+                "cards": [*map(_room_card, rooms), controls, schedules, help_card],
             }
         ],
     }

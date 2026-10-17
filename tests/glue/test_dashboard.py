@@ -35,6 +35,7 @@ def test_dashboard_has_per_room_status_and_boost():
         assert entity_id("sensor", room, "next_change") in ents
         assert entity_id("sensor", room, "lead_time") in ents
         assert entity_id("button", room, "boost") in ents
+        assert entity_id("button", room, "cancel_boost") in ents
 
 
 def test_dashboard_has_vacation_manual_override_and_options_link():
@@ -44,6 +45,7 @@ def test_dashboard_has_vacation_manual_override_and_options_link():
         "switch.smart_heating_vacation_mode",
         "number.smart_heating_vacation_days",
         "button.smart_heating_manual_room_override",
+        "button.smart_heating_cancel_manual_room_override",
     } <= ents
     assert "/config/integrations/integration/smart_heating" in str(d)
 
@@ -58,3 +60,13 @@ def test_yaml_rendering():
         "    y: true\n"
         "e: []\n"
     )
+
+
+def test_dashboard_explains_every_reason():
+    from typing import get_args
+
+    from custom_components.smart_heating.engine.models import Reason
+
+    text = str(build_dashboard(ROOMS))
+    for reason in get_args(Reason):
+        assert f"| {reason} |" in text
