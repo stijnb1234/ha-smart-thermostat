@@ -1,21 +1,17 @@
 """Pure explanation of a Room's target: why it is what it is, and when it next changes.
 
-Mirrors the engine's precedence (Boost > window-open pause > Vacation > Away >
-schedule with pre-heat > setback). No Home Assistant imports.
+The reason comes from the engine (`Decision.reasons`); this module only adds
+when the target next changes. No Home Assistant imports.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Literal
 
-from .engine import Decision, EngineInput, RoomConfig
-from .engine.engine import lead_time_for, wants_comfort
-from .engine.overrides import boosted_rooms
-from .engine.presence import presence_setpoint
+from .engine import Decision, EngineInput, RoomConfig, lead_time_for, wants_comfort
+from .engine.models import Reason
 
-Reason = Literal["boost", "window", "vacation", "away", "pre_heat", "schedule", "setback"]
 _HORIZON_DAYS = 8
 
 
@@ -49,31 +45,22 @@ def _next_schedule_change(room: RoomConfig, inp: EngineInput, after: datetime) -
 
 
 def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanation:
-    now = inp.now
     target = decision.trv_setpoints[room.name]
-    boost = inp.boosts.get(room.name)
-    if room.name in boosted_rooms(inp.boosts, now) and boost is not None:
+    reason = decision.reasons[room.name]
+    end: datetime | None
+    if reason == "boost":
+        boost = inp.boosts[room.name]
         end = boost.start + boost.duration
-        return Explanation("boost", target, end, _schedule_target(room, inp, end))
-    pause_end = decision.window_paused_until.get(room.name)
-    if pause_end is not None:
-        return Explanation("window", target, pause_end, _schedule_target(room, inp, pause_end))
-    forced = presence_setpoint(room, inp)
-    if forced is not None:
-        if inp.vacation_until is not None:
-            until = inp.vacation_until
-            return Explanation("vacation", target, until, _schedule_target(room, inp, until))
-        return Explanation("away", target)
-    change = _next_schedule_change(room, inp, now)
-    reason: Reason
-    if wants_comfort(room, now, inp.learned):
-        in_window = wants_comfort(room, now, {room.name: timedelta(0)})
-        reason = "schedule" if in_window else "pre_heat"
+    elif reason == "window":
+        end = decision.window_paused_until[room.name]
+    elif reason == "vacation":
+        end = inp.vacation_until
+    elif reason == "away":
+        return Explanation(reason, target)
     else:
-        reason = "setback"
-    return Explanation(
-        reason,
-        target,
-        change,
-        _schedule_target(room, inp, change) if change else None,
-    )
+        change = _next_schedule_change(room, inp, inp.now)
+        return Explanation(
+            reason, target, change, _schedule_target(room, inp, change) if change else None
+        )
+    assert end is not None
+    return Explanation(reason, target, end, _schedule_target(room, inp, end))

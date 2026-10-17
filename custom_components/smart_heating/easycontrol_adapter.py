@@ -49,8 +49,21 @@ class EasyControlAdapter:
     def last_write(self) -> WriteResult | None:
         return self._last_write
 
-    async def async_apply(self, setpoint: float) -> None:
-        if setpoint == self._setpoint:
+    @property
+    def observed_setpoint(self) -> float | None:
+        """Setpoint the entity currently reports, or None when unknown."""
+        state = self._hass.states.get(self._entity_id)
+        if state is None:
+            return None
+        value = state.attributes.get("temperature")
+        try:
+            return None if value is None else float(value)
+        except (TypeError, ValueError):
+            return None
+
+    async def async_apply(self, setpoint: float | None, reassert: bool = False) -> None:
+        """Write `setpoint` if it changed (or `reassert`); None means a write is blocked."""
+        if setpoint is None or (setpoint == self._setpoint and not reassert):
             return
         now = datetime.now(timezone.utc)
         try:

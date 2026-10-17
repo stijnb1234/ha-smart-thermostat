@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Mapping
+from typing import Collection, Mapping
 
 from .engine import (
     Boost,
@@ -23,6 +23,7 @@ from .engine import (
     WriteResult,
     decide,
     lead_time_for,
+    select_temperature,
     track_unmet,
 )
 from .engine.learner import LeadTimeLearner
@@ -47,6 +48,7 @@ class Snapshot:
     vacation_until: datetime | None
     outdoor_temp: float | None
     last_write: WriteResult | None
+    easycontrol_observed: float | None = None
 
 
 @dataclass(frozen=True)
@@ -78,13 +80,10 @@ class Controller:
 
     def _record_history(self, snap: Snapshot) -> None:
         for room in self._config.rooms:
-            fresh = snap.external.get(room.name)
-            trv = snap.trv.get(room.name)
-            if fresh is not None and snap.now - fresh.at < self._config.sensors.external_stale_after:
-                value = fresh.value
-            elif trv is not None:
-                value = trv.value + room.trv_offset
-            else:
+            value, _ = select_temperature(
+                room, snap.external, snap.trv, snap.now, self._config.sensors
+            )
+            if value is None:
                 continue
             self._history[room.name] = update_history(
                 self._history.get(room.name, ()),
@@ -117,6 +116,7 @@ class Controller:
             external_temps=snap.external,
             trv_temps=snap.trv,
             last_write=snap.last_write,
+            easycontrol_observed=snap.easycontrol_observed,
             trv_last_seen=snap.trv_last_seen,
             battery_low=snap.battery_low,
             unmet_since=self._unmet,
@@ -146,13 +146,22 @@ class Controller:
         return Cycle(inp, decision, explanations, lead_times)
 
     def confirm(
-        self, cycle: Cycle, trv_written: Mapping[str, float], easycontrol: Commands
+        self,
+        cycle: Cycle,
+        trv_written: Mapping[str, float],
+        easycontrol: Commands,
+        pushed_rooms: Collection[str] | None = None,
     ) -> None:
-        """Feed back what the adapters actually issued, for debounce and window pauses."""
+        """Feed back what the adapters actually issued, for debounce and window pauses.
+
+        `pushed_rooms` are the Rooms whose external temperature push succeeded (None: all).
+        """
         now = cycle.inp.now
         pushed = dict(self._commands.external_temp_pushed)
         pushed_at = dict(self._commands.external_temp_pushed_at)
         for room, value in cycle.decision.external_temp_pushes.items():
+            if pushed_rooms is not None and room not in pushed_rooms:
+                continue
             pushed[room] = value
             pushed_at[room] = now
         self._commands = Commands(

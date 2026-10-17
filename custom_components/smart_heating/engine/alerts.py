@@ -24,7 +24,7 @@ def compute_alerts(inp: EngineInput) -> tuple[Alert, ...]:
     alerts: list[Alert] = []
     if bosch_outage(inp):
         alerts.append(
-            Alert("bosch_outage", None, "Bosch cloud unreachable; TRVs keep their last setpoints")
+            Alert("bosch_outage", None, "Bosch cloud unreachable; boiler call is throttled, TRVs keep following the schedule")
         )
     for room in inp.config.rooms:
         name = room.name
@@ -33,6 +33,9 @@ def compute_alerts(inp: EngineInput) -> tuple[Alert, ...]:
             alerts.append(Alert("trv_offline", name, f"TRV in {name} is offline"))
         if inp.battery_low.get(name):
             alerts.append(Alert("low_battery", name, f"TRV battery in {name} is low"))
+        ext = inp.external_temps.get(name)
+        if ext is not None and inp.now - ext.at > cfg.sensor_stale_after:
+            alerts.append(Alert("sensor_stale", name, f"External sensor in {name} stopped reporting"))
         since = inp.unmet_since.get(name)
         if since is not None and inp.now - since > cfg.target_window:
             alerts.append(Alert("target_not_reached", name, f"{name} is not reaching its target"))

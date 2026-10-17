@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Mapping
+from typing import Any, Mapping
 
 
 @dataclass(frozen=True)
@@ -34,3 +34,43 @@ def manual_override_active(
     overrides: Mapping[str, ManualRoomOverride], now: datetime
 ) -> bool:
     return any(o.active(now) for o in overrides.values())
+
+
+def timed_requests_to_dict(
+    boosts: Mapping[str, Boost], overrides: Mapping[str, ManualRoomOverride]
+) -> dict[str, Any]:
+    """JSON-serialisable form of the active timed requests, for persistence."""
+
+    def one(item: _Timed) -> dict[str, Any]:
+        return {"start": item.start.isoformat(), "seconds": item.duration.total_seconds()}
+
+    return {
+        "boosts": {room: one(b) for room, b in boosts.items()},
+        "manual_overrides": {key: one(o) for key, o in overrides.items()},
+    }
+
+
+def timed_requests_from_dict(
+    data: Mapping[str, Any] | None, now: datetime
+) -> tuple[dict[str, Boost], dict[str, ManualRoomOverride]]:
+    """Inverse of `timed_requests_to_dict`. Expired or malformed entries are dropped."""
+    boosts: dict[str, Boost] = {}
+    overrides: dict[str, ManualRoomOverride] = {}
+    data = data or {}
+
+    def load(raw: Any, cls: type, into: dict) -> None:
+        if not isinstance(raw, Mapping):
+            return
+        for key, item in raw.items():
+            try:
+                value = cls(
+                    datetime.fromisoformat(item["start"]), timedelta(seconds=float(item["seconds"]))
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+            if value.start.tzinfo is not None and value.active(now):
+                into[key] = value
+
+    load(data.get("boosts") or {}, Boost, boosts)
+    load(data.get("manual_overrides") or {}, ManualRoomOverride, overrides)
+    return boosts, overrides

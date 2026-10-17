@@ -126,3 +126,17 @@ def test_nothing_pushed_when_external_reading_is_stale(clock):
     )
 
     assert decision.external_temp_pushes == {}
+
+
+def test_trv_reading_older_than_thirty_minutes_is_stale(clock):
+    fresh = decide(make_input(clock, trv_temps={"living": reading(clock, 20.0, age_min=29)}))
+    stale = decide(make_input(clock, trv_temps={"living": reading(clock, 20.0, age_min=31)}))
+
+    assert fresh.room_temps == {"living": 18.5}
+    assert stale.room_temps == {}
+
+
+def test_stale_trv_reading_creates_no_boiler_demand(clock):
+    d = decide(make_input(clock, trv_temps={"living": reading(clock, 5.0, age_min=45)}))
+
+    assert d.easycontrol_setpoint == 10.0

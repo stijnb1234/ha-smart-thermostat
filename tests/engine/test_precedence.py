@@ -46,15 +46,20 @@ def test_boost_beats_window_pause_beats_vacation_and_away_beats_schedule(clock):
                 boosts={"boosted": Boost(start=now, duration=timedelta(minutes=60))},
                 **kw,
             )
-        ).trv_setpoints
+        )
 
-    away = run(anyone_home=False, away_since=now - timedelta(hours=1))
+    away_d = run(anyone_home=False, away_since=now - timedelta(hours=1))
+    away = away_d.trv_setpoints
+    assert away_d.reasons == {"boosted": "boost", "falling": "window", "steady": "away"}
     assert away["boosted"] == 20.0  # Boost beats window pause and Away
     assert away["falling"] == 12.0  # window pause beats Away (setback)
     assert away["steady"] == 16.0  # Away beats schedule (comfort)
 
-    vacation = run(anyone_home=True, vacation_until=now + timedelta(days=3))
+    vacation_d = run(anyone_home=True, vacation_until=now + timedelta(days=3))
+    vacation = vacation_d.trv_setpoints
+    assert vacation_d.reasons["steady"] == "vacation"
     assert vacation["boosted"] == 20.0
     assert vacation["steady"] == 12.0  # Vacation beats schedule
     away_only = run(anyone_home=True)
-    assert away_only["steady"] == 20.0  # schedule when nobody overrides
+    assert away_only.trv_setpoints["steady"] == 20.0  # schedule when nobody overrides
+    assert away_only.reasons["steady"] == "schedule"

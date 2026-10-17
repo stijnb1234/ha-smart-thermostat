@@ -99,16 +99,30 @@ def test_bosch_outage_alert_after_three_failed_writes(clock):
     assert decide(make_input(clock, last_write=ok)).alerts == ()
 
 
-def test_outage_keeps_last_setpoints_and_does_not_flood_writes(clock):
-    # 03:00 is outside any schedule and the room is cold: normally this would change setpoints.
+def test_outage_does_not_freeze_trv_setpoints_but_throttles_boiler_writes(clock):
+    # Boost must still reach the TRVs during a Bosch outage: TRVs do not use the cloud.
+    from custom_components.smart_heating.engine import Boost
+
     commands = Commands(
-        trv_setpoints={"bedroom": 19.5},
+        trv_setpoints={"bedroom": 16.0},
         easycontrol_setpoint=10.0,
         easycontrol_changed_at=clock.now() - timedelta(hours=1),
     )
-    d = decide(make_input(clock, last_commands=commands, last_write=failed(clock, 3)))
+    boost = {"bedroom": Boost(clock.now(), timedelta(minutes=60))}
+    d = decide(
+        make_input(clock, last_commands=commands, last_write=failed(clock, 3), boosts=boost)
+    )
     assert d.trv_setpoints == {"bedroom": 19.5}
-    assert d.easycontrol_setpoint == 10.0
+    assert d.easycontrol_setpoint == 10.0  # backoff still holds the boiler call
+
+
+def test_stale_external_sensor_alerts_after_two_hours(clock):
+    def alerts(age):
+        ext = {"bedroom": SensorReading(18.0, clock.now() - age)}
+        return codes(decide(make_input(clock, external_temps=ext)))
+
+    assert ("sensor_stale", "bedroom") not in alerts(timedelta(hours=1, minutes=59))
+    assert ("sensor_stale", "bedroom") in alerts(timedelta(hours=2, minutes=1))
 
 
 def test_notifier_notifies_once_and_dismisses_on_resolution(clock):

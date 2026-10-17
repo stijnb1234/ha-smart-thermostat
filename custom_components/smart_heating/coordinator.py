@@ -119,6 +119,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             vacation_until=vacation.until,
             outdoor_temp=outdoor.value if outdoor else None,
             last_write=self._ec.last_write if self._ec else None,
+            easycontrol_observed=self._ec.observed_setpoint if self._ec else None,
         )
 
     async def _async_update_data(self) -> Cycle:

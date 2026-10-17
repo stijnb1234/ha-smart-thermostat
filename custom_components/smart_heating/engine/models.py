@@ -54,6 +54,7 @@ class SensorConfig:
     """Staleness and push defaults from docs/research/phase0-findings.md."""
 
     external_stale_after: timedelta = timedelta(minutes=60)
+    trv_stale_after: timedelta = timedelta(minutes=30)
     push_threshold: float = 0.3
     push_max_interval: timedelta = timedelta(minutes=15)
 
@@ -65,6 +66,8 @@ class AlertConfig:
     trv_offline_after: timedelta = timedelta(minutes=60)
     target_window: timedelta = timedelta(hours=3)
     outage_after_failures: int = 3
+    sensor_stale_after: timedelta = timedelta(hours=2)
+    battery_low_percent: float = 20.0
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,12 @@ class EngineConfig:
     easycontrol_debounce: timedelta = timedelta(minutes=5)
     easycontrol_backoff_base: timedelta = timedelta(minutes=5)
     easycontrol_backoff_max: timedelta = timedelta(minutes=30)
+    # At most one write per this interval, whatever the cause (also guards the first write).
+    easycontrol_min_interval: timedelta = timedelta(minutes=2)
+    # Re-write the desired setpoint when the EasyControl reports another one for this long.
+    easycontrol_reassert_after: timedelta = timedelta(minutes=30)
+    # Demand only when a comfort-heating Room is colder than target by more than this (degC).
+    demand_hysteresis: float = 0.3
     alerts: AlertConfig = AlertConfig()
     # Away longer than this drops rooms from setback to frost-hold.
     prolonged_absence: timedelta = timedelta(hours=48)
@@ -138,14 +147,24 @@ class EngineInput:
     # End of Vacation mode, or None when it is off. Kept set after it passes
     # until someone is home, so the schedule resumes before arrival.
     vacation_until: datetime | None = None
+    # Setpoint the EasyControl currently reports (None when unknown), for re-asserting ours.
+    easycontrol_observed: float | None = None
     # Recent Room temperature readings per Room (oldest first) for window detection.
     temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
+
+
+Reason = Literal["boost", "window", "vacation", "away", "pre_heat", "schedule", "setback"]
 
 
 @dataclass(frozen=True)
 class Decision:
     trv_setpoints: Mapping[str, float]
-    easycontrol_setpoint: float
+    # None: nothing held yet and a first write is currently blocked (backoff); do not write.
+    easycontrol_setpoint: float | None
+    # Write easycontrol_setpoint even though unchanged (the EasyControl drifted from it).
+    easycontrol_reassert: bool = False
+    # Why each Room has its target (the precedence ladder's winning rung).
+    reasons: Mapping[str, Reason] = field(default_factory=dict)
     alerts: tuple[Alert, ...] = ()
     room_temps: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushes: Mapping[str, float] = field(default_factory=dict)
