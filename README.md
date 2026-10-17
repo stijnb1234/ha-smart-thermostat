@@ -23,7 +23,7 @@ Room-by-room heating for Home Assistant. One boiler, several radiators: the boil
 - **Alerts** (TRV offline, low battery, room never reaches target, Bosch outage, stale sensor) and a **weekly gas report** (m³ per heating-degree-day vs last year).
 - A generated **dashboard** with a plain-language overview (who is heating, boiler status, alerts), a page per room and a help page.
 
-Not controlled: floor heating, dumb TRVs (except through the Manual-room override), door-aware zones. See `.scratch/smart-heating/spec.md`.
+Not controlled: floor loops themselves (floor heating only calls the boiler), dumb TRVs (except through the Manual-room override), door-aware zones. See `.scratch/smart-heating/spec.md`.
 
 ## Requirements
 
