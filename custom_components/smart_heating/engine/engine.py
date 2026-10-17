@@ -5,6 +5,7 @@ from typing import Mapping
 
 from .alerts import bosch_outage, compute_alerts
 from .boiler import easycontrol_setpoint, has_demand
+from .window import window_pauses
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
 
 
@@ -80,6 +81,10 @@ def decide(inp: EngineInput) -> Decision:
         room.name: room.comfort if _wants_comfort(room, inp.now, inp.learned) else room.setback
         for room in inp.config.rooms
     }
+    paused = window_pauses(inp)
+    for room in inp.config.rooms:
+        if room.name in paused:  # precedence: Boost > window-open pause > everything else
+            trv_setpoints[room.name] = room.frost_hold
     demand = has_demand(inp.config, trv_setpoints, room_temps)
     ec_setpoint = easycontrol_setpoint(inp, demand)
     if bosch_outage(inp):
@@ -92,4 +97,5 @@ def decide(inp: EngineInput) -> Decision:
         alerts=compute_alerts(inp),
         room_temps=room_temps,
         external_temp_pushes=pushes,
+        window_paused_until=paused,
     )
