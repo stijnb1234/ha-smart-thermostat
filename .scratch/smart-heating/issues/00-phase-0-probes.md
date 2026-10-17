@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] EasyControl: latency from setpoint write to burner start, measured over several writes
 - [ ] EasyControl: whether a raised setpoint persists or reverts, and for how long
@@ -14,3 +14,7 @@
 - [ ] Findings note written, with recommended debounce time, default pre-heat lead time and fallback behaviour
 
 Parent spec: `.scratch/smart-heating/spec.md`
+
+## Answer
+
+Probes not run (no long-term testing possible). Assumed defaults recorded in `docs/research/phase0-findings.md`, each configurable and flagged to verify in production. Probe tooling kept in `scripts/phase0/` for later.
