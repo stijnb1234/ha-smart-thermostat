@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Mapping
 
 from .boiler import easycontrol_setpoint, has_demand
+from .window import window_pauses
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
 from .presence import presence_setpoint
 
@@ -85,10 +86,15 @@ def decide(inp: EngineInput) -> Decision:
             trv_setpoints[room.name] = room.comfort
         else:
             trv_setpoints[room.name] = room.setback
+    paused = window_pauses(inp)
+    for room in inp.config.rooms:
+        if room.name in paused:  # precedence: Boost > window-open pause > everything else
+            trv_setpoints[room.name] = room.frost_hold
     demand = has_demand(inp.config, trv_setpoints, room_temps)
     return Decision(
         trv_setpoints=trv_setpoints,
         easycontrol_setpoint=easycontrol_setpoint(inp, demand),
         room_temps=room_temps,
         external_temp_pushes=pushes,
+        window_paused_until=paused,
     )

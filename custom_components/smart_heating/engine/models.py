@@ -31,6 +31,12 @@ class RoomConfig:
     # Fixed pre-heat lead time: 60 min + 10 min burner latency (phase0 findings).
     lead_time: timedelta = DEFAULT_LEAD_TIME
     trv_offset: float = 0.0  # added to the TRV sensor reading when no external sensor is used
+    # Open-window detection: pause when temperature falls >= window_drop degC within
+    # window_period; hold frost-hold for window_pause (clamped to 15-30 min).
+    window_detection: bool = True
+    window_drop: float = 1.5
+    window_period: timedelta = timedelta(minutes=10)
+    window_pause: timedelta = timedelta(minutes=20)
 
 
 @dataclass(frozen=True)
@@ -71,6 +77,7 @@ class Commands:
     easycontrol_changed_at: datetime | None = None
     external_temp_pushed: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushed_at: Mapping[str, datetime] = field(default_factory=dict)
+    window_paused_until: Mapping[str, datetime] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -106,6 +113,8 @@ class EngineInput:
     # End of Vacation mode, or None when it is off. Kept set after it passes
     # until someone is home, so the schedule resumes before arrival.
     vacation_until: datetime | None = None
+    # Recent Room temperature readings per Room (oldest first) for window detection.
+    temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -115,6 +124,7 @@ class Decision:
     alerts: tuple[Alert, ...] = ()
     room_temps: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushes: Mapping[str, float] = field(default_factory=dict)
+    window_paused_until: Mapping[str, datetime] = field(default_factory=dict)
 
 
 ALL_DAYS = frozenset(range(7))
