@@ -29,10 +29,12 @@ class VacationState:
     def __init__(self) -> None:
         self.days = 7
         self.until: datetime | None = None
+        self.switch: VacationSwitch | None = None
 
 
 class VacationDaysNumber(RestoreNumber, NumberEntity):
     _attr_name = "Vacation days"
+    entity_id = "number.smart_heating_vacation_days"
     _attr_native_min_value = 1
     _attr_native_max_value = 60
     _attr_native_step = 1
@@ -56,9 +58,11 @@ class VacationDaysNumber(RestoreNumber, NumberEntity):
 
 class VacationSwitch(SwitchEntity, RestoreEntity):
     _attr_name = "Vacation mode"
+    entity_id = "switch.smart_heating_vacation_mode"
 
     def __init__(self, state: VacationState) -> None:
         self._state = state
+        state.switch = self
 
     @property
     def is_on(self) -> bool:

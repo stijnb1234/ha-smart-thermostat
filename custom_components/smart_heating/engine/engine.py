@@ -31,7 +31,7 @@ def lead_time_for(room: RoomConfig, learned: Mapping[str, object]) -> timedelta:
     return value if isinstance(value, timedelta) else room.lead_time
 
 
-def _wants_comfort(
+def wants_comfort(
     room: RoomConfig, now: datetime, learned: Mapping[str, object]
 ) -> bool:
     """In a window now, or a window starts within the room's lead time."""
@@ -87,7 +87,7 @@ def decide(inp: EngineInput) -> Decision:
             trv_setpoints[room.name] = room.comfort
         elif forced is not None:
             trv_setpoints[room.name] = forced
-        elif _wants_comfort(room, inp.now, inp.learned):
+        elif wants_comfort(room, inp.now, inp.learned):
             trv_setpoints[room.name] = room.comfort
         else:
             trv_setpoints[room.name] = room.setback

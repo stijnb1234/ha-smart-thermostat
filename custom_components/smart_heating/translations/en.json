@@ -18,8 +18,19 @@
           "add_room": "Add a room",
           "edit_room": "Edit a room",
           "remove_room": "Remove a room",
+          "heating_settings": "Boiler and presence settings",
           "report_settings": "Gas report settings",
           "save": "Save and close"
+        }
+      },
+      "heating_settings": {
+        "title": "Boiler and presence settings",
+        "description": "EasyControl climate entity (the boiler call), people who count as home, and the low (no demand) and high (demand) EasyControl setpoints.",
+        "data": {
+          "easycontrol_entity": "EasyControl climate entity",
+          "persons": "Tracked people",
+          "easycontrol_low": "EasyControl setpoint without demand",
+          "easycontrol_high": "EasyControl setpoint with demand"
         }
       },
       "report_settings": {

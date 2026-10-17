@@ -12,10 +12,24 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import CONF_GAS_ENTITY, CONF_HDD_BASE, CONF_OUTDOOR_ENTITY, CONF_ROOMS, DOMAIN
+from .const import (
+    CONF_EASYCONTROL_ENTITY,
+    CONF_EASYCONTROL_HIGH,
+    CONF_EASYCONTROL_LOW,
+    CONF_GAS_ENTITY,
+    CONF_HDD_BASE,
+    CONF_OUTDOOR_ENTITY,
+    CONF_PERSONS,
+    CONF_ROOMS,
+    DEFAULT_EASYCONTROL_HIGH,
+    DEFAULT_EASYCONTROL_LOW,
+    DOMAIN,
+)
 from .report import DEFAULT_HDD_BASE
 
 REPORT_KEYS = (CONF_GAS_ENTITY, CONF_OUTDOOR_ENTITY, CONF_HDD_BASE)
+HEATING_KEYS = (CONF_EASYCONTROL_ENTITY, CONF_PERSONS, CONF_EASYCONTROL_LOW, CONF_EASYCONTROL_HIGH)
+SETTING_KEYS = REPORT_KEYS + HEATING_KEYS
 from .rooms import (
     DEFAULT_COMFORT,
     DEFAULT_FROST_HOLD,
@@ -99,7 +113,7 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
     def _settings(self) -> dict[str, Any]:
         if self._settings_cache is None:
             opts = self.config_entry.options
-            self._settings_cache = {k: opts[k] for k in REPORT_KEYS if k in opts}
+            self._settings_cache = {k: opts[k] for k in SETTING_KEYS if k in opts}
         return self._settings_cache
 
     @_settings.setter
@@ -116,13 +130,16 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         options = ["add_room"]
         if self.rooms:
             options += ["edit_room", "remove_room"]
-        options += ["report_settings", "save"]
+        options += ["heating_settings", "report_settings", "save"]
         return self.async_show_menu(step_id="init", menu_options=options)
 
     async def async_step_report_settings(self, user_input=None):
         current = self._settings
         if user_input is not None:
-            self._settings = {k: v for k, v in user_input.items() if v not in (None, "")}
+            self._settings = {
+                **{k: v for k, v in self._settings.items() if k not in REPORT_KEYS},
+                **{k: v for k, v in user_input.items() if v not in (None, "")},
+            }
             return await self.async_step_init()
 
         def opt(key, default=None):
@@ -142,6 +159,35 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
             }
         )
         return self.async_show_form(step_id="report_settings", data_schema=schema)
+
+    async def async_step_heating_settings(self, user_input=None):
+        current = self._settings
+        if user_input is not None:
+            self._settings = {
+                **{k: v for k, v in current.items() if k not in HEATING_KEYS},
+                **{k: v for k, v in user_input.items() if v not in (None, "", [])},
+            }
+            return await self.async_step_init()
+
+        def opt(key, default=None):
+            return vol.Optional(key, description={"suggested_value": current.get(key, default)})
+
+        temp = selector.NumberSelector(
+            selector.NumberSelectorConfig(min=5, max=30, step=0.5, unit_of_measurement="°C")
+        )
+        schema = vol.Schema(
+            {
+                opt(CONF_EASYCONTROL_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="climate")
+                ),
+                opt(CONF_PERSONS): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="person", multiple=True)
+                ),
+                opt(CONF_EASYCONTROL_LOW, DEFAULT_EASYCONTROL_LOW): temp,
+                opt(CONF_EASYCONTROL_HIGH, DEFAULT_EASYCONTROL_HIGH): temp,
+            }
+        )
+        return self.async_show_form(step_id="heating_settings", data_schema=schema)
 
     async def async_step_save(self, user_input=None):
         return self.async_create_entry(data={CONF_ROOMS: self.rooms, **self._settings})

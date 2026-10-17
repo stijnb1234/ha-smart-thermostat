@@ -14,6 +14,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .dashboard import entity_id
 from .engine import Boost, ManualRoomOverride
 
 if TYPE_CHECKING:
@@ -33,14 +34,17 @@ class BoostButton(ButtonEntity):
         self._room, self._state = room, state
         self._attr_name = f"{room} boost"
         self._attr_unique_id = f"{entry_id}_boost_{room}"
+        self.entity_id = entity_id("button", room, "boost")
 
     async def async_press(self) -> None:
         self._state["boosts"][self._room] = Boost(dt_util.utcnow(), BOOST_DURATION)
+        await _refresh(self._state)
 
 
 class ManualRoomOverrideButton(ButtonEntity):
     _attr_has_entity_name = True
     _attr_name = "Manual room override"
+    entity_id = "button.smart_heating_manual_room_override"
 
     def __init__(self, entry_id: str, state: dict) -> None:
         self._state = state
@@ -50,6 +54,13 @@ class ManualRoomOverrideButton(ButtonEntity):
         self._state["manual_overrides"][MANUAL_OVERRIDE_KEY] = ManualRoomOverride(
             dt_util.utcnow(), MANUAL_OVERRIDE_DURATION
         )
+        await _refresh(self._state)
+
+
+async def _refresh(state: dict) -> None:
+    """Re-run the control cycle now so the press takes effect immediately."""
+    if (coordinator := state.get("coordinator")) is not None:
+        await coordinator.async_request_refresh()
 
 
 async def async_setup_entry(
