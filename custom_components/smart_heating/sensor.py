@@ -13,6 +13,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN
 from .dashboard import entity_id
 from .explain import summarize
+from .i18n import tr
 from .status import (
     alert_sentence,
     backoff_text,
@@ -28,12 +29,11 @@ REASONS = ["boost", "window", "vacation", "away", "occupant_away", "manual", "fl
 
 class _RoomSensor(CoordinatorEntity, SensorEntity):
     key = ""
-    label = ""
 
     def __init__(self, coordinator, entry_id: str, room: str) -> None:
         super().__init__(coordinator)
         self._room = room
-        self._attr_name = f"{room} {self.label}"
+        self._attr_name = tr(coordinator.lang, f"entity.{self.key}", room=room)
         self._attr_unique_id = f"{entry_id}_{self.key}_{room}"
         self.entity_id = entity_id("sensor", room, self.key)
 
@@ -44,7 +44,7 @@ class _RoomSensor(CoordinatorEntity, SensorEntity):
 
 
 class ReasonSensor(_RoomSensor):
-    key, label = "reason", "heating reason"
+    key = "reason"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = REASONS
 
@@ -57,7 +57,7 @@ class ReasonSensor(_RoomSensor):
 class SummarySensor(_RoomSensor):
     """Plain-language sentence about the room's target (the reason sensor stays machine-readable)."""
 
-    key, label = "summary", "summary"
+    key = "summary"
 
     @property
     def native_value(self) -> str | None:
@@ -67,11 +67,11 @@ class SummarySensor(_RoomSensor):
         now = dt_util.as_local(self.coordinator.data.inp.now)
         if e.next_change_at is not None:
             e = replace(e, next_change_at=dt_util.as_local(e.next_change_at))
-        return summarize(e, now)
+        return summarize(e, now, self.coordinator.lang)
 
 
 class NextChangeSensor(_RoomSensor):
-    key, label = "next_change", "next change"
+    key = "next_change"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     @property
@@ -86,7 +86,7 @@ class NextChangeSensor(_RoomSensor):
 
 
 class LeadTimeSensor(_RoomSensor):
-    key, label = "lead_time", "pre-heat lead time"
+    key = "lead_time"
     _attr_device_class = SensorDeviceClass.DURATION
     _attr_native_unit_of_measurement = UnitOfTime.MINUTES
 
@@ -101,11 +101,10 @@ class _SystemSensor(CoordinatorEntity, SensorEntity):
     """System-wide sensor: smart_heating_<key>."""
 
     key = ""
-    label = ""
 
     def __init__(self, coordinator, entry_id: str) -> None:
         super().__init__(coordinator)
-        self._attr_name = f"Smart Heating {self.label}"
+        self._attr_name = tr(coordinator.lang, f"entity.{self.key}")
         self._attr_unique_id = f"{entry_id}_{self.key}"
         self.entity_id = entity_id("sensor", None, self.key)
 
@@ -116,7 +115,7 @@ class _SystemSensor(CoordinatorEntity, SensorEntity):
 
 
 class StatusSensor(_SystemSensor):
-    key, label = "status", "status"
+    key = "status"
 
     def _facts(self):
         data = self.coordinator.data
@@ -130,7 +129,7 @@ class StatusSensor(_SystemSensor):
 
     @property
     def native_value(self) -> str | None:
-        return status_text(*self._facts()) if self.coordinator.data else None
+        return status_text(*self._facts(), self.coordinator.lang) if self.coordinator.data else None
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -146,8 +145,7 @@ class StatusSensor(_SystemSensor):
 
 
 class ActiveAlertsSensor(_SystemSensor):
-    key, label = "active_alerts", "active alerts"
-    _attr_native_unit_of_measurement = "alerts"
+    key = "active_alerts"
 
     @property
     def _alerts(self):
@@ -161,18 +159,18 @@ class ActiveAlertsSensor(_SystemSensor):
     @property
     def extra_state_attributes(self) -> dict:
         return {
-            "messages": [alert_sentence(a) for a in self._alerts],
+            "messages": [alert_sentence(a, self.coordinator.lang) for a in self._alerts],
             "alerts": [{"code": a.code, "room": a.room} for a in self._alerts],
         }
 
 
 class BoilerDemandSensor(_SystemSensor):
-    key, label = "boiler_demand_rooms", "boiler demand from"
+    key = "boiler_demand_rooms"
 
     @property
     def native_value(self) -> str | None:
         b = self._boiler
-        return demand_text(b) if b else None
+        return demand_text(b, self.coordinator.lang) if b else None
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -181,7 +179,7 @@ class BoilerDemandSensor(_SystemSensor):
 
 
 class BoilerTargetSensor(_SystemSensor):
-    key, label = "boiler_target", "boiler target (EasyControl)"
+    key = "boiler_target"
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
 
@@ -192,7 +190,7 @@ class BoilerTargetSensor(_SystemSensor):
 
 
 class BoilerLastWriteSensor(_SystemSensor):
-    key, label = "boiler_last_write", "boiler last write"
+    key = "boiler_last_write"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     @property
@@ -202,7 +200,7 @@ class BoilerLastWriteSensor(_SystemSensor):
 
 
 class BoilerWriteResultSensor(_SystemSensor):
-    key, label = "boiler_write_result", "boiler last write result"
+    key = "boiler_write_result"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ["ok", "rate_limited", "error", "none"]
 
@@ -213,7 +211,7 @@ class BoilerWriteResultSensor(_SystemSensor):
 
 
 class BoilerBackoffSensor(_SystemSensor):
-    key, label = "boiler_backoff", "boiler backoff"
+    key = "boiler_backoff"
 
     @property
     def native_value(self) -> str | None:
@@ -222,11 +220,11 @@ class BoilerBackoffSensor(_SystemSensor):
             return None
         now = dt_util.as_local(self.coordinator.data.inp.now)
         until = dt_util.as_local(b.backoff_until) if b.backoff_until else None
-        return backoff_text(until, now)
+        return backoff_text(until, now, self.coordinator.lang)
 
 
 class BoilerManualHoldSensor(_SystemSensor):
-    key, label = "boiler_manual_hold", "boiler manual hold"
+    key = "boiler_manual_hold"
 
     @property
     def native_value(self) -> str | None:
@@ -235,7 +233,7 @@ class BoilerManualHoldSensor(_SystemSensor):
             return None
         now = dt_util.as_local(self.coordinator.data.inp.now)
         until = dt_util.as_local(b.hold_until) if b.hold_until else None
-        return hold_text(until, now)
+        return hold_text(until, now, self.coordinator.lang)
 
 
 SYSTEM_SENSORS = (

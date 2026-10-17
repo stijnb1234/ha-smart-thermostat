@@ -47,6 +47,7 @@ from .const import (
     DOMAIN,
 )
 from .report import DEFAULT_HDD_BASE
+from .i18n import pick_language, tr
 from .rooms import (
     PRESETS,
     RoomError,
@@ -215,6 +216,9 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
             self._rooms = [dict(r) for r in self.config_entry.options.get(CONF_ROOMS, [])]
         return self._rooms
 
+    def _reason(self, err: RoomError) -> str:
+        return tr(pick_language(self.hass.config.language), f"room_error.{err.code}", **err.params)
+
     async def async_step_init(self, user_input=None):
         options = ["add_room"]
         if self.rooms:
@@ -334,7 +338,7 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_init()
             except RoomError as err:
                 errors["base"] = "invalid_room"
-                placeholders = {"reason": str(err)}
+                placeholders = {"reason": self._reason(err)}
                 return self.async_show_form(
                     step_id="add_room",
                     data_schema=_room_schema(user_input),
@@ -374,7 +378,7 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                     step_id="edit_room_details",
                     data_schema=_room_schema(user_input),
                     errors={"base": "invalid_room"},
-                    description_placeholders={"reason": str(err)},
+                    description_placeholders={"reason": self._reason(err)},
                 )
         return self.async_show_form(
             step_id="edit_room_details",

@@ -1,0 +1,142 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Heating",
+        "description": "Stel slimme verwarming per ruimte in. Voeg ruimtes daarna toe via Configureren."
+      }
+    },
+    "abort": {
+      "already_configured": "Smart Heating is al ingesteld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Smart Heating-ruimtes",
+        "menu_options": {
+          "add_room": "Ruimte toevoegen",
+          "edit_room": "Ruimte bewerken",
+          "remove_room": "Ruimte verwijderen",
+          "heating_settings": "Boiler- en aanwezigheidsinstellingen",
+          "report_settings": "Gasrapport-instellingen",
+          "save": "Opslaan en sluiten",
+          "advanced_settings": "Boileraanvraag en meldingsdrempels"
+        }
+      },
+      "heating_settings": {
+        "title": "Boiler- en aanwezigheidsinstellingen",
+        "description": "EasyControl-klimaatentiteit (de boileraanvraag), personen die als thuis tellen, de lage (geen vraag) en hoge (vraag) EasyControl-instelwaarden, de duur van Boost en handmatige ruimte-override, en het opwarmvenster voor het slapengaan (gebruikt door de slaapkamer-voorinstelling bij het opslaan van een ruimte).",
+        "data": {
+          "easycontrol_entity": "EasyControl-klimaatentiteit",
+          "persons": "Gevolgde personen",
+          "arrival_entities": "Op-weg-naar-huis-signaal (optioneel; bijv. een persoon in een zone 'bijna thuis', of een schakelaar die aan staat. Beëindigt Afwezig/Vakantie eerder zodat het huis warm is als je aankomt)",
+          "easycontrol_low": "EasyControl-instelwaarde zonder vraag",
+          "easycontrol_high": "EasyControl-instelwaarde met vraag",
+          "boost_minutes": "Duur van Boost",
+          "manual_override_minutes": "Duur van handmatige ruimte-override",
+          "pre_bed_start": "Start opwarmen slaapkamer voor het slapengaan",
+          "pre_bed_end": "Einde opwarmen slaapkamer voor het slapengaan"
+        }
+      },
+      "report_settings": {
+        "title": "Gasrapport-instellingen",
+        "description": "Wekelijks rapport op maandag. Vergelijkt m3 per graaddag met dezelfde week vorig jaar (vereist langetermijnstatistieken van de recorder voor beide entiteiten).",
+        "data": {
+          "gas_entity": "Gasmeter (m3, totaal oplopend)",
+          "outdoor_entity": "Buitentemperatuursensor",
+          "hdd_base": "Basistemperatuur voor graaddagen"
+        }
+      },
+      "add_room": {
+        "title": "Ruimte toevoegen",
+        "description": "{reason}\n\nSchema: één comfortvenster per regel, bijv. `ma,wo,vr 08:00-17:00` of `dagelijks 06:00-23:00` (dagen: ma di wo do vr za zo). Buiten de vensters staat de ruimte op de lage temperatuur.",
+        "data": {
+          "name": "Naam van de ruimte",
+          "manual": "Geen Zigbee-radiatorkraan (vloerverwarming of gewone kraan; alleen gebruikt door de handmatige ruimte-override)",
+          "floor_heating": "Vloerverwarming (geen radiatorkraan; vereist een temperatuursensor; warmt zeer vroeg op en houdt ongebruikte radiatoren intussen dicht)",
+          "trv_entity": "Radiatorkraan (klimaatentiteit; niet nodig voor een handmatige ruimte)",
+          "sensor_entity": "Externe temperatuursensor (optioneel)",
+          "presence_entities": "Voor wie is deze ruimte? (optioneel; geen geplande verwarming zolang allemaal weg zijn)",
+          "arrival_entities": "Op-weg-naar-huis-signaal (optioneel; bijv. een persoon in een zone 'bijna thuis', of een schakelaar die aan staat. Warmt de ruimte eerder op)",
+          "comfort": "Comforttemperatuur",
+          "setback": "Lage temperatuur",
+          "frost_hold": "Vorstbeschermingstemperatuur",
+          "preset": "Schemavoorinstelling (gebruikt als het schema hieronder leeg is)",
+          "schedule_text": "Comfortschema (gaat boven de voorinstelling)",
+          "trv_offset": "Kalibratie-offset van de kraansensor (gebruikt zonder externe sensor)",
+          "lead_time_minutes": "Vaste voorverwarmtijd",
+          "window_detection": "Open-raamdetectie",
+          "window_drop": "Temperatuurdaling bij open raam",
+          "window_pause_minutes": "Pauze bij open raam (15-30 min)"
+        }
+      },
+      "edit_room": {
+        "title": "Ruimte bewerken",
+        "data": {
+          "room": "Ruimte"
+        }
+      },
+      "edit_room_details": {
+        "title": "Ruimte bewerken",
+        "description": "{reason}\n\nSchema: één comfortvenster per regel, bijv. `ma,wo,vr 08:00-17:00` of `dagelijks 06:00-23:00` (dagen: ma di wo do vr za zo).",
+        "data": {
+          "name": "Naam van de ruimte",
+          "manual": "Geen Zigbee-radiatorkraan (vloerverwarming of gewone kraan; alleen gebruikt door de handmatige ruimte-override)",
+          "floor_heating": "Vloerverwarming (geen radiatorkraan; vereist een temperatuursensor; warmt zeer vroeg op en houdt ongebruikte radiatoren intussen dicht)",
+          "trv_entity": "Radiatorkraan (klimaatentiteit; niet nodig voor een handmatige ruimte)",
+          "sensor_entity": "Externe temperatuursensor (optioneel)",
+          "presence_entities": "Voor wie is deze ruimte? (optioneel; geen geplande verwarming zolang allemaal weg zijn)",
+          "arrival_entities": "Op-weg-naar-huis-signaal (optioneel; bijv. een persoon in een zone 'bijna thuis', of een schakelaar die aan staat. Warmt de ruimte eerder op)",
+          "comfort": "Comforttemperatuur",
+          "setback": "Lage temperatuur",
+          "frost_hold": "Vorstbeschermingstemperatuur",
+          "preset": "Schemavoorinstelling (gebruikt als het schema hieronder leeg is)",
+          "schedule_text": "Comfortschema (gaat boven de voorinstelling)",
+          "trv_offset": "Kalibratie-offset van de kraansensor (gebruikt zonder externe sensor)",
+          "lead_time_minutes": "Vaste voorverwarmtijd",
+          "window_detection": "Open-raamdetectie",
+          "window_drop": "Temperatuurdaling bij open raam",
+          "window_pause_minutes": "Pauze bij open raam (15-30 min)"
+        }
+      },
+      "remove_room": {
+        "title": "Ruimte verwijderen",
+        "data": {
+          "room": "Ruimte"
+        }
+      },
+      "advanced_settings": {
+        "title": "Boileraanvraag en meldingsdrempels",
+        "description": "Vertraging en pauze bij EasyControl-schrijfacties (limiet van de Bosch-cloud), hysterese van de warmtevraag en meldingsdrempels.",
+        "data": {
+          "debounce_minutes": "Wachttijd na een EasyControl-wijziging",
+          "backoff_base_minutes": "Eerste pauze na een mislukte schrijfactie",
+          "backoff_max_minutes": "Maximale pauze",
+          "demand_hysteresis": "Hysterese van de vraag (ruimte moet zoveel onder het doel zitten)",
+          "trv_settle_minutes": "Radiatorkraan: zo lang wachten na een schrijfactie voor controle",
+          "easycontrol_settle_minutes": "EasyControl: zo lang wachten na een schrijfactie voordat een verschil als handmatige wijziging telt",
+          "easycontrol_manual_hold_minutes": "EasyControl: een handmatige wijziging respecteren gedurende",
+          "trv_offline_minutes": "Kraan offline na",
+          "target_window_hours": "Doel niet bereikt na",
+          "outage_after_failures": "Bosch-storing na mislukte schrijfacties",
+          "sensor_stale_hours": "Externe sensor verouderd na",
+          "battery_low_percent": "Batterij laag onder"
+        }
+      }
+    },
+    "error": {
+      "invalid_room": "Ongeldige ruimte: controleer naam, entiteiten, temperaturen en schema."
+    }
+  },
+  "selector": {
+    "preset": {
+      "options": {
+        "none": "Geen (gebruik de schematekst)",
+        "living_area": "Woonruimte (dagelijks 06:00-23:00)",
+        "working_room": "Werkkamer (ma/wo/vr 08:00-17:00)",
+        "bedroom": "Slaapkamer (werktijden plus opwarmen voor het slapengaan)"
+      }
+    }
+  }
+}

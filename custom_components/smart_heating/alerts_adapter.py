@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from .const import DOMAIN
 from .engine import Alert, AlertNotifier
+from .status import alert_sentence
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -17,8 +18,9 @@ def _notification_id(alert: Alert) -> str:
 
 
 class AlertAdapter:
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, lang: str = "en") -> None:
         self._hass = hass
+        self._lang = lang
         self._notifier = AlertNotifier()
 
     @property
@@ -34,7 +36,7 @@ class AlertAdapter:
                 "create",
                 {
                     "title": "Smart Heating",
-                    "message": alert.message or alert.code,
+                    "message": alert_sentence(alert, self._lang),
                     "notification_id": _notification_id(alert),
                 },
                 blocking=True,

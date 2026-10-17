@@ -15,6 +15,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN
 from .dashboard import entity_id
 from .engine import Boost, ManualRoomOverride
+from .i18n import tr
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -29,7 +30,7 @@ class BoostButton(ButtonEntity):
 
     def __init__(self, entry_id: str, room: str, state: dict) -> None:
         self._room, self._state = room, state
-        self._attr_name = f"{room} boost"
+        self._attr_name = tr(state["lang"], "entity.boost", room=room)
         self._attr_unique_id = f"{entry_id}_boost_{room}"
         self.entity_id = entity_id("button", room, "boost")
 
@@ -43,7 +44,7 @@ class CancelBoostButton(ButtonEntity):
 
     def __init__(self, entry_id: str, room: str, state: dict) -> None:
         self._room, self._state = room, state
-        self._attr_name = f"{room} cancel boost"
+        self._attr_name = tr(state["lang"], "entity.cancel_boost", room=room)
         self._attr_unique_id = f"{entry_id}_cancel_boost_{room}"
         self.entity_id = entity_id("button", room, "cancel_boost")
 
@@ -54,11 +55,11 @@ class CancelBoostButton(ButtonEntity):
 
 class CancelManualRoomOverrideButton(ButtonEntity):
     _attr_has_entity_name = True
-    _attr_name = "Cancel manual room override"
     entity_id = "button.smart_heating_cancel_manual_room_override"
 
     def __init__(self, entry_id: str, state: dict) -> None:
         self._state = state
+        self._attr_name = tr(state["lang"], "entity.cancel_manual_override")
         self._attr_unique_id = f"{entry_id}_cancel_manual_room_override"
 
     async def async_press(self) -> None:
@@ -68,11 +69,11 @@ class CancelManualRoomOverrideButton(ButtonEntity):
 
 class ManualRoomOverrideButton(ButtonEntity):
     _attr_has_entity_name = True
-    _attr_name = "Manual room override"
     entity_id = "button.smart_heating_manual_room_override"
 
     def __init__(self, entry_id: str, state: dict) -> None:
         self._state = state
+        self._attr_name = tr(state["lang"], "entity.manual_override")
         self._attr_unique_id = f"{entry_id}_manual_room_override"
 
     async def async_press(self) -> None:

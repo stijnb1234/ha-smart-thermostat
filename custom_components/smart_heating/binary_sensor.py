@@ -7,14 +7,14 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .dashboard import entity_id
+from .i18n import tr
 from .status import boiler_status
 
 
 class BoilerCallSensor(CoordinatorEntity, BinarySensorEntity):
-    _attr_name = "Smart Heating boiler called"
-
     def __init__(self, coordinator, entry_id: str) -> None:
         super().__init__(coordinator)
+        self._attr_name = tr(coordinator.lang, "entity.boiler_call")
         self._attr_unique_id = f"{entry_id}_boiler_call"
         self.entity_id = entity_id("binary_sensor", None, "boiler_call")
 

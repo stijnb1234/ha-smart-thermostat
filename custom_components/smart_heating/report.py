@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Mapping, Sequence
 
 from .engine import Alert
+from .i18n import DEFAULT_LANGUAGE, tr
+from .status import alert_sentence
 
 DEFAULT_HDD_BASE = 18.0
 
@@ -54,21 +56,29 @@ class Report:
             return None
         return (self.m3_per_hdd / self.last_year_m3_per_hdd - 1) * 100
 
-    def format(self) -> str:
-        lines = ["Smart Heating weekly report", ""]
+    def format(self, lang: str = DEFAULT_LANGUAGE) -> str:
+        lines = [tr(lang, "report.title"), ""]
         if self.m3_per_hdd is None:
-            lines.append("Gas: no gas data (or no heating degree-days) this week.")
+            lines.append(tr(lang, "report.no_gas"))
         else:
-            line = f"Gas: {self.gas_m3:.1f} m3 over {self.hdd:.1f} HDD = {self.m3_per_hdd:.2f} m3/HDD"
+            line = tr(
+                lang, "report.gas",
+                gas=f"{self.gas_m3:.1f}", hdd=f"{self.hdd:.1f}", per=f"{self.m3_per_hdd:.2f}",
+            )
             if self.last_year_m3_per_hdd is None:
-                line += " (no data for last year)"
+                line += tr(lang, "report.no_last_year")
             else:
-                line += f" (last year: {self.last_year_m3_per_hdd:.2f}, {self.change_pct:+.0f}%)"
+                line += tr(
+                    lang, "report.vs_last_year",
+                    last=f"{self.last_year_m3_per_hdd:.2f}", pct=f"{self.change_pct:+.0f}",
+                )
             lines.append(line)
-        lines += ["", "Heated hours:"]
-        lines += [f"- {n}: {h:.1f} h" for n, h in self.room_hours.items()] or ["- no data"]
-        lines += ["", "Issues:"]
-        lines += [f"- {i}" for i in self.issues] or ["No issues."]
+        lines += ["", tr(lang, "report.heated_hours")]
+        lines += [
+            tr(lang, "report.room_hours", room=n, hours=f"{h:.1f}") for n, h in self.room_hours.items()
+        ] or [tr(lang, "report.no_data")]
+        lines += ["", tr(lang, "report.issues")]
+        lines += [f"- {i}" for i in self.issues] or [tr(lang, "report.no_issues")]
         return "\n".join(lines)
 
 
@@ -93,7 +103,10 @@ def build_report(
 
 
 def alert_issues(
-    history: Sequence[tuple[datetime, Alert]], active: Sequence[Alert], since: datetime
+    history: Sequence[tuple[datetime, Alert]],
+    active: Sequence[Alert],
+    since: datetime,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> list[str]:
     """Report lines for alerts raised since `since` or still active, one per (code, room)."""
     still_active = {(a.code, a.room) for a in active}
@@ -104,6 +117,6 @@ def alert_issues(
     for alert in active:
         seen.setdefault((alert.code, alert.room), alert)
     return [
-        f"{a.message or a.code}" + (" (still active)" if key in still_active else " (resolved)")
+        alert_sentence(a, lang) + tr(lang, "report.still_active" if key in still_active else "report.resolved")
         for key, a in seen.items()
     ]

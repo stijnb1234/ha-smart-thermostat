@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from .const import CONF_GAS_ENTITY, CONF_HDD_BASE, CONF_OUTDOOR_ENTITY, CONF_ROOMS
 from .const import DOMAIN
+from .i18n import pick_language, tr
 from .report import DEFAULT_HDD_BASE, alert_issues, build_report, heated_hours
 
 if TYPE_CHECKING:
@@ -62,6 +63,7 @@ async def _room_hours_and_issues(hass, rooms, start, end):
 async def async_send_report(hass: HomeAssistant, entry: ConfigEntry) -> None:
     from homeassistant.util import dt as dt_util
 
+    lang = pick_language(hass.config.language)
     opts = entry.options
     base = float(opts.get(CONF_HDD_BASE, DEFAULT_HDD_BASE))
     end = dt_util.now().replace(minute=0, second=0, microsecond=0)
@@ -74,11 +76,11 @@ async def async_send_report(hass: HomeAssistant, entry: ConfigEntry) -> None:
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get("coordinator")
     if coordinator is not None:
         notifier = coordinator.alerts.notifier
-        issues += alert_issues(notifier.history, notifier.active, start)
+        issues += alert_issues(notifier.history, notifier.active, start, lang)
     if not gas:
-        issues.append("No gas meter configured (Configure > Gas report settings)")
+        issues.append(tr(lang, "report.no_gas_meter"))
     if not outdoor:
-        issues.append("No outdoor temperature sensor configured")
+        issues.append(tr(lang, "report.no_outdoor"))
 
     report = build_report(
         gas_m3=this_gas, temps=temps, last_gas_m3=last_gas, last_temps=last_temps,
@@ -88,8 +90,8 @@ async def async_send_report(hass: HomeAssistant, entry: ConfigEntry) -> None:
         "persistent_notification",
         "create",
         {
-            "title": "Smart Heating weekly report",
-            "message": report.format(),
+            "title": tr(lang, "report.title"),
+            "message": report.format(lang),
             "notification_id": f"smart_heating_report_{entry.entry_id}",
         },
     )

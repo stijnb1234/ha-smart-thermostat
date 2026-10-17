@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from .const import CONF_ROOMS, DASHBOARD_FILE, DOMAIN
 from .dashboard import build_dashboard, to_yaml
 from .rooms import arrival_entities, presence_entities, sensor_entities, to_engine_rooms, trv_entities
+from .i18n import pick_language
 from .settings import boost_duration, manual_override_duration
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "boost_duration": boost_duration(entry.options),
         "manual_override_duration": manual_override_duration(entry.options),
         "vacation": VacationState(),
+        "lang": pick_language(hass.config.language),
     }
     shared = hass.data[DOMAIN][entry.entry_id]
     learner_store = LearnerStore(hass)
@@ -57,6 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _write_dashboard,
         hass.config.path(DASHBOARD_FILE),
         [r for r in rooms if not r.get("manual")],
+        shared["lang"],
     )
     from . import dashboard_panel
     from .report_glue import schedule_weekly_report
@@ -73,10 +76,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-def _write_dashboard(path: str, rooms: list[dict]) -> None:
+def _write_dashboard(path: str, rooms: list[dict], lang: str) -> None:
     from pathlib import Path
 
-    Path(path).write_text(to_yaml(build_dashboard(rooms)), encoding="utf-8")
+    Path(path).write_text(to_yaml(build_dashboard(rooms, lang)), encoding="utf-8")
 
 
 async def _async_reload_on_change(hass: HomeAssistant, entry: ConfigEntry) -> None:

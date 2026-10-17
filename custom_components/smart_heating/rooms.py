@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import time, timedelta
 from typing import Any, Mapping, Sequence
 
+from .i18n import tr
 from .engine import (
     DEFAULT_FLOOR_LEAD_TIME,
     DEFAULT_LEAD_TIME,
@@ -44,10 +45,17 @@ PRESETS = ("none", "living_area", "working_room", "bedroom")
 DEFAULT_PRE_BED = ("21:30", "22:30")
 
 DAY_NAMES = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+# Dutch day names are accepted too (schedule text is typed by the user).
+DAY_ALIASES = {"ma": "mon", "di": "tue", "wo": "wed", "do": "thu", "vr": "fri", "za": "sat", "zo": "sun"}
 
 
 class RoomError(ValueError):
-    """Invalid room configuration. The message is a short reason."""
+    """Invalid room configuration. `code` and `params` identify the reason for translation;
+    the message is the English reason."""
+
+    def __init__(self, code: str, **params: Any) -> None:
+        self.code, self.params = code, params
+        super().__init__(tr("en", f"room_error.{code}", **params))
 
 
 def _parse_time(text: str) -> time:
@@ -55,26 +63,27 @@ def _parse_time(text: str) -> time:
         hh, mm, *_seconds = text.strip().split(":")  # HH:MM or HH:MM:SS (time selector)
         return time(int(hh), int(mm))
     except (ValueError, TypeError) as err:
-        raise RoomError(f"invalid time {text!r}") from err
+        raise RoomError("invalid_time", text=repr(text)) from err
 
 
 def _parse_days(text: str) -> list[int]:
     text = text.strip().lower()
-    if text == "daily":
+    if text in ("daily", "dagelijks"):
         return list(range(7))
     days: set[int] = set()
     for part in text.split(","):
         part = part.strip()
         if "-" in part:
             a, _, b = part.partition("-")
+            a, b = DAY_ALIASES.get(a.strip(), a.strip()), DAY_ALIASES.get(b.strip(), b.strip())
             if a not in DAY_NAMES or b not in DAY_NAMES:
-                raise RoomError(f"invalid days {part!r}")
+                raise RoomError("invalid_days", text=repr(part))
             i, j = DAY_NAMES.index(a), DAY_NAMES.index(b)
             days.update(range(i, j + 1) if i <= j else [*range(i, 7), *range(0, j + 1)])
-        elif part in DAY_NAMES:
-            days.add(DAY_NAMES.index(part))
+        elif DAY_ALIASES.get(part, part) in DAY_NAMES:
+            days.add(DAY_NAMES.index(DAY_ALIASES.get(part, part)))
         else:
-            raise RoomError(f"invalid days {part!r}")
+            raise RoomError("invalid_days", text=repr(part))
     return sorted(days)
 
 
@@ -89,10 +98,10 @@ def parse_schedule(text: str) -> list[dict[str, Any]]:
             days_text, span = line.rsplit(None, 1)
             start_text, end_text = span.split("-")
         except ValueError as err:
-            raise RoomError(f"invalid schedule line {line!r}") from err
+            raise RoomError("invalid_line", text=repr(line)) from err
         start, end = _parse_time(start_text), _parse_time(end_text)
         if start == end:
-            raise RoomError(f"empty window in {line!r}")
+            raise RoomError("empty_window", text=repr(line))
         windows.append(
             {
                 "days": _parse_days(days_text),
@@ -159,35 +168,35 @@ def room_from_form(
 
 def validate_room(room: Mapping[str, Any]) -> None:
     if not str(room.get("name", "")).strip():
-        raise RoomError("name is required")
+        raise RoomError("name_required")
     if room.get("floor_heating"):
         if not str(room.get("sensor_entity", "")).strip():
-            raise RoomError("a floor heating room needs a temperature sensor")
+            raise RoomError("floor_needs_sensor")
     elif not room.get("manual") and not str(room.get("trv_entity", "")).strip():
-        raise RoomError("trv entity is required (or mark the room as manual)")
+        raise RoomError("trv_required")
     comfort = float(room.get("comfort", DEFAULT_COMFORT))
     setback = float(room.get("setback", DEFAULT_SETBACK))
     frost = float(room.get("frost_hold", DEFAULT_FROST_HOLD))
     if not (MIN_TEMP <= comfort <= MAX_TEMP):
-        raise RoomError(f"comfort must be {MIN_TEMP}-{MAX_TEMP}")
+        raise RoomError("comfort_range", low=MIN_TEMP, high=MAX_TEMP)
     if frost < MIN_FROST_HOLD:
-        raise RoomError(f"frost hold must be at least {MIN_FROST_HOLD}")
+        raise RoomError("frost_min", low=MIN_FROST_HOLD)
     if not (frost <= setback <= comfort):
-        raise RoomError("need frost hold <= setback <= comfort")
+        raise RoomError("temp_order")
     for w in room.get("schedule", ()):
         _parse_time(w["start"])
         _parse_time(w["end"])
     for key, low, high in NUMERIC_LIMITS:
         if key in room and not (low <= float(room[key]) <= high):
-            raise RoomError(f"{key} must be {low}-{high}")
+            raise RoomError("out_of_range", key=key, low=low, high=high)
 
 
 def _check_unique(others: Sequence[Mapping[str, Any]], room: Mapping[str, Any]) -> None:
     if any(o["name"] == room["name"] for o in others):
-        raise RoomError("a room with that name already exists")
+        raise RoomError("duplicate_name")
     trv = room.get("trv_entity")
     if trv and any(o.get("trv_entity") == trv for o in others):
-        raise RoomError("that trv entity is already used by another room")
+        raise RoomError("duplicate_trv")
 
 
 def add_room(rooms: Sequence[Mapping[str, Any]], room: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -200,7 +209,7 @@ def replace_room(
     rooms: Sequence[Mapping[str, Any]], name: str, room: Mapping[str, Any]
 ) -> list[dict[str, Any]]:
     if not any(r["name"] == name for r in rooms):
-        raise RoomError(f"unknown room {name!r}")
+        raise RoomError("unknown_room", text=repr(name))
     validate_room(room)
     _check_unique([r for r in rooms if r["name"] != name], room)
     return [dict(room) if r["name"] == name else dict(r) for r in rooms]
@@ -208,7 +217,7 @@ def replace_room(
 
 def remove_room(rooms: Sequence[Mapping[str, Any]], name: str) -> list[dict[str, Any]]:
     if not any(r["name"] == name for r in rooms):
-        raise RoomError(f"unknown room {name!r}")
+        raise RoomError("unknown_room", text=repr(name))
     return [dict(r) for r in rooms if r["name"] != name]
 
 

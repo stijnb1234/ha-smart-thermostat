@@ -16,6 +16,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from .engine import vacation_end
+from .i18n import tr
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -33,15 +34,15 @@ class VacationState:
 
 
 class VacationDaysNumber(RestoreNumber, NumberEntity):
-    _attr_name = "Vacation days"
     entity_id = "number.smart_heating_vacation_days"
     _attr_native_min_value = 1
     _attr_native_max_value = 60
     _attr_native_step = 1
     _attr_native_value = 7
 
-    def __init__(self, state: VacationState) -> None:
+    def __init__(self, state: VacationState, lang: str = "en") -> None:
         self._state = state
+        self._attr_name = tr(lang, "entity.vacation_days")
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -57,11 +58,11 @@ class VacationDaysNumber(RestoreNumber, NumberEntity):
 
 
 class VacationSwitch(SwitchEntity, RestoreEntity):
-    _attr_name = "Vacation mode"
     entity_id = "switch.smart_heating_vacation_mode"
 
-    def __init__(self, state: VacationState) -> None:
+    def __init__(self, state: VacationState, lang: str = "en") -> None:
         self._state = state
+        self._attr_name = tr(lang, "entity.vacation_mode")
         state.switch = self
 
     @property

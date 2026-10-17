@@ -72,7 +72,11 @@ def test_alert_issues_list_recent_and_active_alerts_once():
 
     lines = alert_issues(history, [low], since=t)
 
-    assert lines == ["Bosch cloud unreachable (resolved)", "TRV battery in Bed is low (still active)"]
+    assert len(lines) == 2
+    assert lines[0].startswith("The Bosch cloud cannot be reached") and lines[0].endswith("(resolved)")
+    assert lines[1] == "The battery of the radiator valve in Bed is low. Replace it soon. (still active)"
+    nl = alert_issues(history, [low], since=t, lang="nl")
+    assert nl[1].endswith("(nog actief)") and "Bed" in nl[1]
 
 
 def test_notifier_records_raise_history_with_time():

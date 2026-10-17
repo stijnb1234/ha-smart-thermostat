@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .dashboard import entity_id
+from .i18n import tr
 
 
 class RoomClimate(CoordinatorEntity, ClimateEntity):
@@ -48,10 +49,7 @@ class RoomClimate(CoordinatorEntity, ClimateEntity):
         return data.decision.hand_set.get(self._room, data.decision.trv_setpoints.get(self._room))
 
     async def async_set_temperature(self, **kwargs) -> None:
-        raise ServiceValidationError(
-            "This target is set by Smart Heating (schedule, Boost, Away, Vacation). "
-            "Use Boost, or edit the room's temperatures under Configure."
-        )
+        raise ServiceValidationError(tr(self.coordinator.lang, "climate.set_refused"))
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         return None

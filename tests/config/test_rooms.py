@@ -235,3 +235,11 @@ def test_floor_heating_room_needs_sensor_not_trv_and_gets_long_default_lead():
     validate_room(room)
     (engine_room,) = to_engine_rooms([room])
     assert engine_room.floor_heating and engine_room.lead_time.total_seconds() == 3 * 3600
+
+
+def test_schedule_accepts_dutch_day_names():
+    from custom_components.smart_heating.rooms import parse_schedule
+
+    assert parse_schedule("ma,wo,vr 08:00-17:00")[0]["days"] == [0, 2, 4]
+    assert parse_schedule("ma-vr 07:00-09:00")[0]["days"] == [0, 1, 2, 3, 4]
+    assert parse_schedule("dagelijks 06:00-23:00")[0]["days"] == list(range(7))

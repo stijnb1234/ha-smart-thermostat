@@ -68,6 +68,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         )
         opts = entry.options
         self._shared = shared
+        self.lang: str = shared.get("lang", "en")
         self._opts = opts
         self._store = learner_store
         self._learner = learner
@@ -82,7 +83,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         self._presence = PresenceAdapter(
             hass, opts.get(CONF_PERSONS, []), opts.get(CONF_ARRIVAL_ENTITIES, [])
         )
-        self.alerts = AlertAdapter(hass)
+        self.alerts = AlertAdapter(hass, self.lang)
         self._commands_store = commands_store
         self._prev_manual: frozenset[str] = frozenset()
         self._prev_hold = None

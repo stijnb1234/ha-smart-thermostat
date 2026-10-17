@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 from .engine import Decision, EngineInput, RoomConfig, lead_time_for, wants_comfort
 from .engine.models import Reason
+from .i18n import DEFAULT_LANGUAGE, number, tr, weekday
 
 _HORIZON_DAYS = 8
 
@@ -66,36 +67,24 @@ def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanati
     return Explanation(reason, target, end, _schedule_target(room, inp, end))
 
 
-def _degrees(value: float) -> str:
-    return f"{value:g} degrees"
+def _degrees(value: float, lang: str = DEFAULT_LANGUAGE) -> str:
+    return tr(lang, "degrees", value=number(value, lang))
 
 
-def _when(at: datetime, now: datetime) -> str:
+def _when(at: datetime, now: datetime, lang: str = DEFAULT_LANGUAGE) -> str:
     """Clock time for today, weekday and time for later days (`at` and `now` in local time)."""
-    return at.strftime("%H:%M") if at.date() == now.date() else at.strftime("%a %H:%M")
+    clock = at.strftime("%H:%M")
+    return clock if at.date() == now.date() else f"{weekday(lang, at.weekday())} {clock}"
 
 
-def summarize(e: Explanation, now: datetime) -> str:
+def summarize(e: Explanation, now: datetime, lang: str = DEFAULT_LANGUAGE) -> str:
     """One plain sentence for the dashboard; the reason sensor stays the machine value."""
-    end = _when(e.next_change_at, now) if e.next_change_at else None
-    if e.reason == "boost":
-        return f"Boost until {end}" if end else "Boost"
-    if e.reason == "window":
-        return f"Window seems open, heating paused until {end}" if end else "Window seems open"
-    if e.reason == "vacation":
-        until = f"Vacation until {end}" if end else "Vacation"
-        return f"{until}, kept at {_degrees(e.target)}"
-    if e.reason == "away":
-        return f"Nobody home, kept at {_degrees(e.target)}"
-    if e.reason == "occupant_away":
-        return f"Room's person is away, kept at {_degrees(e.target)}"
-    if e.reason == "floor_first":
-        return f"Waiting for the floor heating to warm up first, kept at {_degrees(e.target)}"
-    if e.reason == "manual":
-        held = f"Set by hand to {_degrees(e.target)}"
-        return f"{held}, until {end}" if end else held
-    if e.reason == "pre_heat":
-        return f"Warming up, warm until {end}" if end else "Warming up"
-    if e.reason == "schedule":
-        return f"Warm until {end}" if end else "Warm"
-    return f"Warm from {end}" if end else f"Kept at {_degrees(e.target)}"
+    end = _when(e.next_change_at, now, lang) if e.next_change_at else None
+    temp = _degrees(e.target, lang)
+    fixed = {"away", "occupant_away", "floor_first"}
+    if e.reason in fixed:
+        return tr(lang, f"summary.{e.reason}", temp=temp)
+    key = e.reason if end else f"{e.reason}_open"
+    if e.reason == "setback":
+        key = "setback" if end else "setback_open"
+    return tr(lang, f"summary.{key}", end=end, temp=temp)

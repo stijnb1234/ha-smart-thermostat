@@ -13,9 +13,7 @@ from typing import Mapping
 from .engine import Alert, Decision, EngineConfig, EngineInput
 from .engine.boiler import backoff_delay
 from .engine.overrides import manual_override_active
-
-MANUAL_OVERRIDE_LABEL = "Manual room override"
-
+from .i18n import DEFAULT_LANGUAGE, tr, weekday
 
 @dataclass(frozen=True)
 class BoilerStatus:
@@ -57,27 +55,29 @@ def boiler_status(inp: EngineInput, decision: Decision) -> BoilerStatus:
     )
 
 
-def demand_text(status: BoilerStatus) -> str:
-    names = [*status.demand_rooms, *([MANUAL_OVERRIDE_LABEL] if status.manual_override else [])]
-    return ", ".join(names) if names else "None"
+def demand_text(status: BoilerStatus, lang: str = DEFAULT_LANGUAGE) -> str:
+    names = [*status.demand_rooms, *([tr(lang, "demand.manual_override")] if status.manual_override else [])]
+    return ", ".join(names) if names else tr(lang, "demand.none")
 
 
 def _clock(at: datetime) -> str:
     return at.strftime("%H:%M")
 
 
-def backoff_text(until: datetime | None, now: datetime) -> str:
-    if until is None:
-        return "No"
-    stamp = _clock(until) if until.date() == now.date() else until.strftime("%a %H:%M")
-    return f"Waiting until {stamp}"
+def _stamp(at: datetime, now: datetime, lang: str) -> str:
+    return _clock(at) if at.date() == now.date() else f"{weekday(lang, at.weekday())} {_clock(at)}"
 
 
-def hold_text(until: datetime | None, now: datetime) -> str:
+def backoff_text(until: datetime | None, now: datetime, lang: str = DEFAULT_LANGUAGE) -> str:
     if until is None:
-        return "No"
-    stamp = _clock(until) if until.date() == now.date() else until.strftime("%a %H:%M")
-    return f"Respecting a manual change until {stamp}"
+        return tr(lang, "backoff.no")
+    return tr(lang, "backoff.waiting", at=_stamp(until, now, lang))
+
+
+def hold_text(until: datetime | None, now: datetime, lang: str = DEFAULT_LANGUAGE) -> str:
+    if until is None:
+        return tr(lang, "hold.no")
+    return tr(lang, "hold.respecting", at=_stamp(until, now, lang))
 
 
 def heating_rooms(
@@ -96,28 +96,33 @@ def heating_rooms(
 
 
 def status_text(
-    heating: tuple[str, ...], boiler_on: bool, vacation: bool, away: bool
+    heating: tuple[str, ...],
+    boiler_on: bool,
+    vacation: bool,
+    away: bool,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> str:
-    head = f"Heating: {', '.join(heating)}." if heating else "Nothing is heating."
-    parts = [head, "Boiler on." if boiler_on else "Boiler off."]
+    head = tr(lang, "status.heating", rooms=", ".join(heating)) if heating else tr(lang, "status.nothing")
+    parts = [head, tr(lang, "status.boiler_on" if boiler_on else "status.boiler_off")]
     if vacation:
-        parts.append("Vacation mode is on.")
+        parts.append(tr(lang, "status.vacation"))
     elif away:
-        parts.append("Nobody is home.")
+        parts.append(tr(lang, "status.away"))
     return " ".join(parts)
 
 
-def alert_sentence(alert: Alert) -> str:
-    room = alert.room or "a room"
-    sentences = {
-        "bosch_outage": (
-            "The Bosch cloud cannot be reached, so the boiler cannot be called reliably. "
-            "The radiator valves keep following the schedule."
-        ),
-        "trv_offline": f"The radiator valve in {room} is not responding.",
-        "low_battery": f"The battery of the radiator valve in {room} is low. Replace it soon.",
-        "sensor_stale": f"The temperature sensor in {room} stopped reporting.",
-        "trv_off": f"The radiator valve in {room} is switched off and does not turn back on.",
-        "target_not_reached": f"{room} has been too cold for a long time and is not reaching its target.",
-    }
-    return sentences.get(alert.code) or alert.message or alert.code
+def alert_sentence(alert: Alert, lang: str = DEFAULT_LANGUAGE) -> str:
+    room = alert.room or tr(lang, "alert.a_room")
+    key = f"alert.{alert.code}"
+    if key in _ALERT_KEYS:
+        return tr(lang, key, room=room)
+    return alert.message or alert.code
+
+
+_ALERT_KEYS = {
+    f"alert.{c}"
+    for c in (
+        "bosch_outage", "trv_offline", "trv_off", "trv_write_failed",
+        "low_battery", "sensor_stale", "target_not_reached",
+    )
+}
