@@ -1,0 +1,4 @@
+scripts/phase0/.env.probe
+scripts/phase0/results/
+__pycache__/
+.claude/worktrees/
