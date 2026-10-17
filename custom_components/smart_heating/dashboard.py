@@ -30,23 +30,25 @@ def entity_id(domain: str, room: str | None, key: str | None = None) -> str:
 
 
 HELP_CONTENT = """\
-**Why** shows which rule sets a room's current target (strongest first):
+Each room has a target temperature. **Why** tells you the reason for it right now.
+The rules at the top win over the ones below.
 
-| Why | Meaning |
+| Why | What it means |
 |---|---|
-| boost | You pressed Boost: comfort until it expires or you cancel it. |
-| window | A fast temperature drop looks like an open window; heating is paused for 15-30 min. |
-| vacation | Vacation mode is on: frost-hold (12 °C). |
-| away | Nobody is home: setback, or frost-hold after a long absence. |
-| pre_heat | Heating early so the room is warm when its schedule starts. |
-| schedule | Inside a comfort window: comfort temperature. |
-| setback | Nothing asks for heat: the lower setback temperature. |
+| boost | You pressed Boost. The room is heated to its normal warm temperature until the boost runs out or you cancel it. |
+| window | The room cooled down very fast, so a window is probably open. Heating is paused for a little while. |
+| vacation | Vacation mode is on. The room is only kept just above freezing. |
+| away | Nobody is home. The room is kept a bit cooler than normal. After a long absence it is only kept just above freezing. |
+| pre_heat | The room is heating up early so it is already warm when its schedule starts. |
+| schedule | The room is in a scheduled warm period, so it is heated to its normal warm temperature. |
+| setback | Nobody needs this room warm now, so it stays at its lower temperature. |
 
-**Next change** is when the target changes next and what it becomes.
-**Pre-heat lead time** is how long before a schedule the room starts heating (learned over time).
+**Next change** shows when the target changes next, and to what temperature.
+**Pre-heat lead time** is how long before a schedule the room starts warming up. It starts as a fixed guess and improves as the system learns how fast each room heats.
 
-The boiler fires (EasyControl setpoint raised) only while a room at comfort is colder than its target.
-**Manual room override** fires the boiler for rooms with dumb radiator valves; cancel it with its cancel button.
+**When does the boiler turn on?** Only when at least one room that should be warm is clearly colder than it should be. When no room needs heat, the boiler is allowed to rest.
+
+**Manual room override** is for rooms where you turn the radiator on by hand. It tells the boiler to heat for a set time, since the system can't see that room. Use its cancel button to stop it early.
 """
 
 
