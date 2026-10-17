@@ -11,6 +11,7 @@ from .models import (
     EngineInput,
     RoomConfig,
     ScheduleWindow,
+    WriteResult,
 )
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "EngineInput",
     "RoomConfig",
     "ScheduleWindow",
+    "WriteResult",
     "decide",
 ]

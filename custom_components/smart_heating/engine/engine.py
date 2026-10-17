@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from .boiler import easycontrol_setpoint, has_demand
 from .models import Decision, EngineInput, RoomConfig, ScheduleWindow
 
 
@@ -26,10 +27,12 @@ def decide(inp: EngineInput) -> Decision:
     Rooms are at comfort inside their schedule windows, otherwise at setback.
     The boiler call stays low until demand handling is added.
     """
+    trv_setpoints = {
+        room.name: room.comfort if _wants_comfort(room, inp.now) else room.setback
+        for room in inp.config.rooms
+    }
+    demand = has_demand(inp.config, trv_setpoints, inp.room_temps)
     return Decision(
-        trv_setpoints={
-            room.name: room.comfort if _wants_comfort(room, inp.now) else room.setback
-            for room in inp.config.rooms
-        },
-        easycontrol_setpoint=inp.config.easycontrol_low,
+        trv_setpoints=trv_setpoints,
+        easycontrol_setpoint=easycontrol_setpoint(inp, demand),
     )
