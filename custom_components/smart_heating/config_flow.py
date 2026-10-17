@@ -39,6 +39,7 @@ from .const import (
     CONF_GAS_ENTITY,
     CONF_HDD_BASE,
     CONF_OUTDOOR_ENTITY,
+    CONF_ARRIVAL_ENTITIES,
     CONF_PERSONS,
     CONF_ROOMS,
     DEFAULT_EASYCONTROL_HIGH,
@@ -67,6 +68,7 @@ from .engine import (
 REPORT_KEYS = (CONF_GAS_ENTITY, CONF_OUTDOOR_ENTITY, CONF_HDD_BASE)
 HEATING_KEYS = (
     CONF_EASYCONTROL_ENTITY,
+    CONF_ARRIVAL_ENTITIES,
     CONF_PERSONS,
     CONF_EASYCONTROL_LOW,
     CONF_EASYCONTROL_HIGH,
@@ -268,6 +270,12 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                 ),
                 opt(CONF_PERSONS): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="person", multiple=True)
+                ),
+                opt(CONF_ARRIVAL_ENTITIES): selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain=["person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
+                        multiple=True,
+                    )
                 ),
                 opt(CONF_EASYCONTROL_LOW, DEFAULT_EASYCONTROL_LOW): temp,
                 opt(CONF_EASYCONTROL_HIGH, DEFAULT_EASYCONTROL_HIGH): temp,

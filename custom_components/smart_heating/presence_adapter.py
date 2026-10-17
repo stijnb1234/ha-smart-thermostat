@@ -14,18 +14,31 @@ if TYPE_CHECKING:
 
 
 class PresenceAdapter:
-    def __init__(self, hass: HomeAssistant, persons: Iterable[str]) -> None:
+    def __init__(
+        self, hass: HomeAssistant, persons: Iterable[str], arrival: Iterable[str] = ()
+    ) -> None:
         """persons are person entity ids, e.g. person.stijn."""
         self._hass = hass
         self._persons = tuple(persons)
+        self._arrival = tuple(arrival)
 
     def anyone_home(self) -> bool:
-        """True if a tracked person is home; with none tracked, assume home."""
+        """True if a tracked person is home or heading home; with none tracked, assume home."""
         if not self._persons:
+            return True
+        if self.arriving():
             return True
         return any(
             (state := self._hass.states.get(p)) is not None and state.state == "home"
             for p in self._persons
+        )
+
+    def arriving(self) -> bool:
+        """A heading-home entity is active: on, or a person in any zone (not 'not_home')."""
+        return any(
+            (state := self._hass.states.get(e)) is not None
+            and state.state not in ("not_home", "off", "unavailable", "unknown")
+            for e in self._arrival
         )
 
     def away_since(self) -> datetime | None:

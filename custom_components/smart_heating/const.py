@@ -5,6 +5,7 @@ CONF_OUTDOOR_ENTITY = "outdoor_entity"
 CONF_HDD_BASE = "hdd_base"
 CONF_EASYCONTROL_ENTITY = "easycontrol_entity"
 CONF_PERSONS = "persons"
+CONF_ARRIVAL_ENTITIES = "arrival_entities"
 CONF_EASYCONTROL_LOW = "easycontrol_low"
 CONF_EASYCONTROL_HIGH = "easycontrol_high"
 DEFAULT_EASYCONTROL_LOW = 15.0

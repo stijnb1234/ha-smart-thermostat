@@ -30,6 +30,7 @@
         "data": {
           "easycontrol_entity": "EasyControl climate entity",
           "persons": "Tracked people",
+          "arrival_entities": "Heading-home signal (optional; e.g. a person in a 'near home' zone, or a switch that is on. Ends Away/Vacation early so the house warms before you arrive)",
           "easycontrol_low": "EasyControl setpoint without demand",
           "easycontrol_high": "EasyControl setpoint with demand",
           "boost_minutes": "Boost duration",

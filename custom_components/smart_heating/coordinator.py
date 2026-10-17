@@ -19,6 +19,7 @@ from .apply import run_isolated
 from .const import (
     CONF_EASYCONTROL_ENTITY,
     CONF_OUTDOOR_ENTITY,
+    CONF_ARRIVAL_ENTITIES,
     CONF_PERSONS,
     DOMAIN,
     UPDATE_INTERVAL_SECONDS,
@@ -76,7 +77,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         self._trv = TrvAdapter(hass, shared["trv_entities"])
         ec_entity = opts.get(CONF_EASYCONTROL_ENTITY)
         self._ec = EasyControlAdapter(hass, ec_entity) if ec_entity else None
-        self._presence = PresenceAdapter(hass, opts.get(CONF_PERSONS, []))
+        self._presence = PresenceAdapter(
+            hass, opts.get(CONF_PERSONS, []), opts.get(CONF_ARRIVAL_ENTITIES, [])
+        )
         self.alerts = AlertAdapter(hass)
         self._z2m = {room: z2m_name(e) for room, e in shared["trv_entities"].items()}
         self._last_seen: dict[str, datetime] = {}
