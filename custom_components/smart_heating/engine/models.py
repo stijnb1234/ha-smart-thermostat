@@ -3,8 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 from typing import Mapping
+
+
+@dataclass(frozen=True)
+class ScheduleWindow:
+    """Comfort window: weekdays (Monday=0) it starts on, start inclusive, end exclusive.
+
+    If end <= start the window runs past midnight into the next day.
+    """
+
+    days: frozenset[int]
+    start: time
+    end: time
 
 
 @dataclass(frozen=True)
@@ -13,6 +25,7 @@ class RoomConfig:
     comfort: float = 19.5
     setback: float = 16.0
     frost_hold: float = 12.0
+    schedule: tuple[ScheduleWindow, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -53,3 +66,10 @@ class Decision:
     trv_setpoints: Mapping[str, float]
     easycontrol_setpoint: float
     alerts: tuple[Alert, ...] = ()
+
+
+ALL_DAYS = frozenset(range(7))
+WORK_DAYS = frozenset({0, 2, 4})  # Mon/Wed/Fri
+
+DEFAULT_LIVING_AREA_SCHEDULE = (ScheduleWindow(ALL_DAYS, time(6), time(23)),)
+DEFAULT_WORK_SCHEDULE = (ScheduleWindow(WORK_DAYS, time(8), time(17)),)

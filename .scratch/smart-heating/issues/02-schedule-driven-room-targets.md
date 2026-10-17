@@ -4,11 +4,15 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Comfort 19.5 and setback 16 are defaults per Room
-- [ ] Working room demand only on configured days and hours
-- [ ] Bedroom follows work hours
-- [ ] TRV adapter sets the setpoint on schedule transitions
+- [x] Comfort 19.5 and setback 16 are defaults per Room
+- [x] Working room demand only on configured days and hours
+- [x] Bedroom follows work hours
+- [x] TRV adapter sets the setpoint on schedule transitions
 
 Parent spec: `.scratch/smart-heating/spec.md`
+
+## Answer
+
+Branch `ticket-02`. Schedule resolution in `custom_components/smart_heating/engine/engine.py` (`ScheduleWindow` in `models.py`, spec default schedules exported); tests in `tests/engine/test_schedule.py`. TRV adapter: `custom_components/smart_heating/trv_adapter.py` (writes via `climate.set_temperature` only when the setpoint changes; not yet wired into a coordinator, boiler call is ticket 03).
