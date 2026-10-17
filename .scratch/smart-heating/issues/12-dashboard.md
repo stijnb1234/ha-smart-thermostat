@@ -7,11 +7,13 @@
 **Status:** resolved
 
 - [ ] Per-Room state with reason visible
-- [ ] Schedules, Boost, Vacation mode and Manual-room override usable from the dashboard
+- [ ] Schedules, Boost, Vacation mode and Manual-room override usable from the dashboard (Boost, Vacation, Manual-room override: yes. Schedules: NOT editable on the dashboard; see limitation below)
 
 Parent spec: `.scratch/smart-heating/spec.md`
 
 ## Answer
+
+Limitation (review): the per-Room climate entities are read-only (targets come from schedule/Boost/Away/Vacation), and schedules are edited in the integration's options flow, which the dashboard only links to (markdown card). Standard Lovelace cards cannot edit free-form schedules (ADR-0005). The second checkbox is therefore left unticked; first box is ticked as written. Boost/Manual-room override durations and the pre-bed window are options-flow settings too.
 
 Resolved on branch `ticket-12`. Decision recorded in `docs/adr/0005-dashboard-standard-lovelace-cards.md`: generated standard Lovelace cards, no custom JS.
 

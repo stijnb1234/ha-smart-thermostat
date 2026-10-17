@@ -1,13 +1,12 @@
 """Thin HA glue: a Boost button per Room and a Manual-room override button.
 
-Pressing a button records a start time and duration in the entry's shared
+Pressing a button records a start time and the configured duration in the entry's shared
 `boosts` / `manual_overrides` dicts; the coordinator passes those to the engine,
 which decides when they expire.
 """
 
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.components.button import ButtonEntity
@@ -22,8 +21,6 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-BOOST_DURATION = timedelta(minutes=60)
-MANUAL_OVERRIDE_DURATION = timedelta(hours=2)
 MANUAL_OVERRIDE_KEY = "manual_room"
 
 
@@ -37,7 +34,7 @@ class BoostButton(ButtonEntity):
         self.entity_id = entity_id("button", room, "boost")
 
     async def async_press(self) -> None:
-        self._state["boosts"][self._room] = Boost(dt_util.utcnow(), BOOST_DURATION)
+        self._state["boosts"][self._room] = Boost(dt_util.utcnow(), self._state["boost_duration"])
         await _refresh(self._state)
 
 
@@ -52,13 +49,14 @@ class ManualRoomOverrideButton(ButtonEntity):
 
     async def async_press(self) -> None:
         self._state["manual_overrides"][MANUAL_OVERRIDE_KEY] = ManualRoomOverride(
-            dt_util.utcnow(), MANUAL_OVERRIDE_DURATION
+            dt_util.utcnow(), self._state["manual_override_duration"]
         )
         await _refresh(self._state)
 
 
 async def _refresh(state: dict) -> None:
-    """Re-run the control cycle now so the press takes effect immediately."""
+    """Persist the request (survives reloads), then re-run the control cycle now."""
+    await state["override_store"].async_save(state["boosts"], state["manual_overrides"])
     if (coordinator := state.get("coordinator")) is not None:
         await coordinator.async_request_refresh()
 

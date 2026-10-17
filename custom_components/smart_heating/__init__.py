@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from .const import CONF_ROOMS, DASHBOARD_FILE, DOMAIN
 from .dashboard import build_dashboard, to_yaml
 from .rooms import sensor_entities, to_engine_rooms, trv_entities
+from .settings import boost_duration, manual_override_duration
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -19,16 +20,24 @@ PLATFORMS = ["button", "climate", "sensor", "number", "switch"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .coordinator import SmartHeatingCoordinator
+    from homeassistant.util import dt as dt_util
+
     from .learner_store import LearnerStore
+    from .override_store import OverrideStore
     from .vacation import VacationState
 
     rooms = entry.options.get(CONF_ROOMS, [])
+    override_store = OverrideStore(hass)
+    boosts, manual_overrides = await override_store.async_load(dt_util.utcnow())
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "rooms": to_engine_rooms(rooms),
         "trv_entities": trv_entities(rooms),
         "sensor_entities": sensor_entities(rooms),
-        "boosts": {},
-        "manual_overrides": {},
+        "boosts": boosts,
+        "manual_overrides": manual_overrides,
+        "override_store": override_store,
+        "boost_duration": boost_duration(entry.options),
+        "manual_override_duration": manual_override_duration(entry.options),
         "vacation": VacationState(),
     }
     shared = hass.data[DOMAIN][entry.entry_id]

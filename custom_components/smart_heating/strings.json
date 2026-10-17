@@ -20,17 +20,22 @@
           "remove_room": "Remove a room",
           "heating_settings": "Boiler and presence settings",
           "report_settings": "Gas report settings",
-          "save": "Save and close"
+          "save": "Save and close",
+          "advanced_settings": "Boiler call and alert thresholds"
         }
       },
       "heating_settings": {
         "title": "Boiler and presence settings",
-        "description": "EasyControl climate entity (the boiler call), people who count as home, and the low (no demand) and high (demand) EasyControl setpoints.",
+        "description": "EasyControl climate entity (the boiler call), people who count as home, the low (no demand) and high (demand) EasyControl setpoints, Boost and Manual-room override durations, and the bedroom pre-bed warm-up window (used by the bedroom preset when a room is saved).",
         "data": {
           "easycontrol_entity": "EasyControl climate entity",
           "persons": "Tracked people",
           "easycontrol_low": "EasyControl setpoint without demand",
-          "easycontrol_high": "EasyControl setpoint with demand"
+          "easycontrol_high": "EasyControl setpoint with demand",
+          "boost_minutes": "Boost duration",
+          "manual_override_minutes": "Manual-room override duration",
+          "pre_bed_start": "Bedroom pre-bed warm-up start",
+          "pre_bed_end": "Bedroom pre-bed warm-up end"
         }
       },
       "report_settings": {
@@ -47,38 +52,81 @@
         "description": "{reason}\n\nSchedule: one comfort window per line, e.g. `mon,wed,fri 08:00-17:00` or `daily 06:00-23:00`. Outside the windows the room is at setback.",
         "data": {
           "name": "Room name",
-          "trv_entity": "TRV (climate entity)",
+          "manual": "No Zigbee TRV (floor heating or dumb TRV; only used by the Manual-room override)",
+          "trv_entity": "TRV (climate entity; not needed for a manual room)",
           "sensor_entity": "External temperature sensor (optional)",
           "comfort": "Comfort temperature",
           "setback": "Setback temperature",
           "frost_hold": "Frost hold temperature",
-          "schedule_text": "Comfort schedule"
+          "preset": "Schedule preset (used when the schedule below is empty)",
+          "schedule_text": "Comfort schedule (overrides the preset)",
+          "trv_offset": "TRV sensor calibration offset (used without an external sensor)",
+          "lead_time_minutes": "Fixed pre-heat lead time",
+          "window_detection": "Open-window detection",
+          "window_drop": "Open-window temperature drop",
+          "window_pause_minutes": "Open-window pause (15-30 min)"
         }
       },
       "edit_room": {
         "title": "Edit a room",
-        "data": { "room": "Room" }
+        "data": {
+          "room": "Room"
+        }
       },
       "edit_room_details": {
         "title": "Edit room",
         "description": "{reason}\n\nSchedule: one comfort window per line, e.g. `mon,wed,fri 08:00-17:00` or `daily 06:00-23:00`.",
         "data": {
           "name": "Room name",
-          "trv_entity": "TRV (climate entity)",
+          "manual": "No Zigbee TRV (floor heating or dumb TRV; only used by the Manual-room override)",
+          "trv_entity": "TRV (climate entity; not needed for a manual room)",
           "sensor_entity": "External temperature sensor (optional)",
           "comfort": "Comfort temperature",
           "setback": "Setback temperature",
           "frost_hold": "Frost hold temperature",
-          "schedule_text": "Comfort schedule"
+          "preset": "Schedule preset (used when the schedule below is empty)",
+          "schedule_text": "Comfort schedule (overrides the preset)",
+          "trv_offset": "TRV sensor calibration offset (used without an external sensor)",
+          "lead_time_minutes": "Fixed pre-heat lead time",
+          "window_detection": "Open-window detection",
+          "window_drop": "Open-window temperature drop",
+          "window_pause_minutes": "Open-window pause (15-30 min)"
         }
       },
       "remove_room": {
         "title": "Remove a room",
-        "data": { "room": "Room" }
+        "data": {
+          "room": "Room"
+        }
+      },
+      "advanced_settings": {
+        "title": "Boiler call and alert thresholds",
+        "description": "Debounce and backoff of EasyControl writes (Bosch cloud rate limit), demand hysteresis, and alert thresholds.",
+        "data": {
+          "debounce_minutes": "Debounce after an EasyControl change",
+          "backoff_base_minutes": "First backoff after a failed write",
+          "backoff_max_minutes": "Maximum backoff",
+          "demand_hysteresis": "Demand hysteresis (room must be this far below target)",
+          "trv_offline_minutes": "TRV offline after",
+          "target_window_hours": "Target not reached after",
+          "outage_after_failures": "Bosch outage after failed writes",
+          "sensor_stale_hours": "External sensor stale after",
+          "battery_low_percent": "Low battery below"
+        }
       }
     },
     "error": {
       "invalid_room": "Invalid room: check names, entities, temperatures and schedule."
+    }
+  },
+  "selector": {
+    "preset": {
+      "options": {
+        "none": "None (use the schedule text)",
+        "living_area": "Living area (daily 06:00-23:00)",
+        "working_room": "Working room (Mon/Wed/Fri 08:00-17:00)",
+        "bedroom": "Bedroom (work hours plus pre-bed warm-up)"
+      }
     }
   }
 }

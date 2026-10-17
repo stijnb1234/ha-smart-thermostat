@@ -132,4 +132,4 @@ def test_gather_helpers():
     assert [r.value for r in h] == [2.0]
     assert z2m_name("climate.bedroom_trv") == "bedroom_trv"
     assert battery_entity("climate.bedroom_trv") == "sensor.bedroom_trv_battery"
-    assert battery_is_low("15") and not battery_is_low("80") and not battery_is_low("unknown")
+    assert battery_is_low("15", 20.0) and not battery_is_low("80", 20.0) and not battery_is_low("unknown", 20.0)

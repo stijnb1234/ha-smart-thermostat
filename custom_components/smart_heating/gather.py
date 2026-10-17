@@ -6,8 +6,6 @@ from datetime import datetime, timedelta
 
 from .engine import SensorReading
 
-BATTERY_LOW_PERCENT = 20.0
-
 
 def parse_number(text: object) -> float | None:
     """A state string as float, or None for unknown/unavailable/garbage."""
@@ -38,6 +36,6 @@ def battery_entity(trv_entity: str) -> str:
     return f"sensor.{z2m_name(trv_entity)}_battery"
 
 
-def battery_is_low(state: object) -> bool:
+def battery_is_low(state: object, threshold_percent: float) -> bool:
     value = parse_number(state)
-    return value is not None and value < BATTERY_LOW_PERCENT
+    return value is not None and value < threshold_percent

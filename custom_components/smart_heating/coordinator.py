@@ -15,23 +15,21 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .alerts_adapter import AlertAdapter
+from .apply import run_isolated
 from .const import (
     CONF_EASYCONTROL_ENTITY,
-    CONF_EASYCONTROL_HIGH,
-    CONF_EASYCONTROL_LOW,
     CONF_OUTDOOR_ENTITY,
     CONF_PERSONS,
-    DEFAULT_EASYCONTROL_HIGH,
-    DEFAULT_EASYCONTROL_LOW,
     DOMAIN,
     UPDATE_INTERVAL_SECONDS,
 )
 from .controller import Controller, Cycle, Snapshot
 from .easycontrol_adapter import EasyControlAdapter
-from .engine import Commands, EngineConfig, SensorReading
+from .engine import Commands, SensorReading
 from .gather import battery_entity, battery_is_low, parse_number, z2m_name
 from .learner_store import LearnerStore
 from .presence_adapter import PresenceAdapter
+from .settings import build_engine_config
 from .trv_adapter import TrvAdapter
 
 if TYPE_CHECKING:
@@ -66,11 +64,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         self._opts = opts
         self._store = learner_store
         self._learner = learner
-        config = EngineConfig(
-            rooms=shared["rooms"],
-            easycontrol_low=float(opts.get(CONF_EASYCONTROL_LOW, DEFAULT_EASYCONTROL_LOW)),
-            easycontrol_high=float(opts.get(CONF_EASYCONTROL_HIGH, DEFAULT_EASYCONTROL_HIGH)),
-        )
+        config = build_engine_config(shared["rooms"], opts)
+        self._battery_low_percent = config.alerts.battery_low_percent
         self.controller = Controller(
             config, learner, shared["boosts"], shared["manual_overrides"]
         )
@@ -78,9 +73,11 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         ec_entity = opts.get(CONF_EASYCONTROL_ENTITY)
         self._ec = EasyControlAdapter(hass, ec_entity) if ec_entity else None
         self._presence = PresenceAdapter(hass, opts.get(CONF_PERSONS, []))
-        self._alerts = AlertAdapter(hass)
+        self.alerts = AlertAdapter(hass)
         self._z2m = {room: z2m_name(e) for room, e in shared["trv_entities"].items()}
         self._last_seen: dict[str, datetime] = {}
+        # Last good external reading, so a sensor that goes unavailable ages into a stale alert.
+        self._last_external: dict[str, SensorReading] = {}
 
     def _reading(self, entity_id: str | None, attr: str | None = None) -> SensorReading | None:
         state = self.hass.states.get(entity_id) if entity_id else None
@@ -97,7 +94,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         battery: dict[str, bool] = {}
         for room, trv_entity in self._shared["trv_entities"].items():
             if (r := self._reading(self._shared["sensor_entities"].get(room))) is not None:
-                external[room] = r
+                self._last_external[room] = r
+            if room in self._last_external:
+                external[room] = self._last_external[room]
             if (r := self._reading(trv_entity, "current_temperature")) is not None:
                 trv[room] = r
             state = self.hass.states.get(trv_entity)
@@ -105,7 +104,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
                 self._last_seen[room] = _reported_at(state)
             self._last_seen.setdefault(room, now)  # grace period at startup
             bat = self.hass.states.get(battery_entity(trv_entity))
-            battery[room] = bat is not None and battery_is_low(bat.state)
+            battery[room] = bat is not None and battery_is_low(bat.state, self._battery_low_percent)
         vacation = self._shared["vacation"]
         outdoor = self._reading(self._opts.get(CONF_OUTDOOR_ENTITY))
         return Snapshot(
@@ -126,18 +125,36 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         snap = self._snapshot()
         cycle = self.controller.step(snap)
         decision = cycle.decision
-        try:
-            await self._trv.async_apply(decision.trv_setpoints)
-            await self._trv.async_push_external_temperature(
-                decision.external_temp_pushes, self._z2m
+        pushed: set[str] = set()
+
+        async def push() -> None:
+            pushed.update(
+                await self._trv.async_push_external_temperature(
+                    decision.external_temp_pushes, self._z2m
+                )
             )
+
+        async def boiler() -> None:
             if self._ec is not None:
-                await self._ec.async_apply(decision.easycontrol_setpoint)
-            await self._alerts.async_apply(decision.alerts)
-        except Exception:  # noqa: BLE001 - keep the loop alive; retried next cycle
-            _LOGGER.exception("Applying smart heating decision failed")
+                await self._ec.async_apply(
+                    decision.easycontrol_setpoint, decision.easycontrol_reassert
+                )
+
+        # Independent steps: one failing write must not skip the rest of the cycle.
+        await run_isolated(
+            [
+                ("trv setpoints", lambda: self._trv.async_apply(decision.trv_setpoints)),
+                ("external temperature", push),
+                ("easycontrol", boiler),
+                ("alerts", lambda: self.alerts.async_apply(decision.alerts)),
+            ],
+            _LOGGER,
+        )
         self.controller.confirm(
-            cycle, self._trv.written, self._ec.commands if self._ec else Commands()
+            cycle,
+            self._trv.written,
+            self._ec.commands if self._ec else Commands(),
+            pushed,
         )
         if self.controller.take_learner_dirty():
             await self._store.async_save(self._learner)
