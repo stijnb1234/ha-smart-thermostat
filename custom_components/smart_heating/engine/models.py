@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
-from typing import Literal, Mapping
+from typing import Literal
 
 from .overrides import Boost, ManualRoomOverride
 
@@ -54,6 +55,11 @@ class RoomConfig:
     window_drop: float = 0.8
     window_period: timedelta = timedelta(minutes=15)
     window_pause: timedelta = timedelta(minutes=20)
+    # Correct the TRV setpoint for its sensor's difference with the room sensor, when the TRV
+    # cannot take an external temperature (see compensation.py).
+    compensate_trv: bool = True
+    # Stable id for entities and storage (the engine itself keys Rooms by name).
+    id: str = field(default="", compare=False)
 
 
 @dataclass(frozen=True)
@@ -80,19 +86,19 @@ class AlertConfig:
 @dataclass(frozen=True)
 class EngineConfig:
     rooms: tuple[RoomConfig, ...]
-    easycontrol_low: float
-    easycontrol_high: float
+    boiler_low: float
+    boiler_high: float
     sensors: SensorConfig = SensorConfig()
     # Boiler call policy (docs/research/phase0-findings.md, all configurable).
-    easycontrol_debounce: timedelta = timedelta(minutes=5)
-    easycontrol_backoff_base: timedelta = timedelta(minutes=5)
-    easycontrol_backoff_max: timedelta = timedelta(minutes=30)
+    boiler_debounce: timedelta = timedelta(minutes=5)
+    boiler_backoff_base: timedelta = timedelta(minutes=5)
+    boiler_backoff_max: timedelta = timedelta(minutes=30)
     # At most one write per this interval, whatever the cause (also guards the first write).
-    easycontrol_min_interval: timedelta = timedelta(minutes=2)
-    # The EasyControl reporting another setpoint than we set, this long after our write,
-    # is a manual change: respected (no writes) for easycontrol_manual_hold.
-    easycontrol_settle: timedelta = timedelta(minutes=10)
-    easycontrol_manual_hold: timedelta = timedelta(hours=2)
+    boiler_min_interval: timedelta = timedelta(minutes=2)
+    # The boiler thermostat reporting another setpoint than we set, this long after our write,
+    # is a manual change: respected (no writes) for boiler_manual_hold.
+    boiler_settle: timedelta = timedelta(minutes=10)
+    boiler_manual_hold: timedelta = timedelta(hours=2)
     # A TRV reporting another setpoint than we wrote, this long after our write, is either
     # a lost write (retried, max 3 times) or a manual change (left alone until the target changes).
     trv_settle: timedelta = timedelta(minutes=10)
@@ -114,10 +120,10 @@ class Commands:
     """What the engine last issued, so it can debounce and avoid repeats."""
 
     trv_setpoints: Mapping[str, float] = field(default_factory=dict)
-    easycontrol_setpoint: float | None = None
-    easycontrol_changed_at: datetime | None = None
-    # While set and in the future, a manual change on the EasyControl is respected.
-    easycontrol_hold_until: datetime | None = None
+    boiler_setpoint: float | None = None
+    boiler_changed_at: datetime | None = None
+    # While set and in the future, a manual change on the boiler thermostat is respected.
+    boiler_hold_until: datetime | None = None
     # TRV write bookkeeping: when we wrote, the value the TRV held just before, retries of
     # the current target, and Rooms whose TRV was changed by hand (value = target at that time).
     trv_written_at: Mapping[str, datetime] = field(default_factory=dict)
@@ -127,11 +133,13 @@ class Commands:
     external_temp_pushed: Mapping[str, float] = field(default_factory=dict)
     external_temp_pushed_at: Mapping[str, datetime] = field(default_factory=dict)
     window_paused_until: Mapping[str, datetime] = field(default_factory=dict)
+    # Open-radiator Rooms that stopped every boiler call last cycle (kept until they cool off).
+    open_radiators_capping: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
 class WriteResult:
-    """Outcome of the adapter's latest EasyControl write attempt."""
+    """Outcome of the adapter's latest boiler thermostat write attempt."""
 
     at: datetime
     status: Literal["ok", "rate_limited", "error"]
@@ -171,12 +179,17 @@ class EngineInput:
     # End of Vacation mode, or None when it is off. Kept set after it passes
     # until someone is home, so the schedule resumes before arrival.
     vacation_until: datetime | None = None
-    # Setpoint the EasyControl currently reports (None when unknown), for re-asserting ours.
-    easycontrol_observed: float | None = None
+    # Setpoint the boiler thermostat currently reports (None when unknown), for re-asserting ours.
+    boiler_observed: float | None = None
     # Setpoint each TRV currently reports (missing when unavailable), for lost-write detection.
     trv_observed: Mapping[str, float] = field(default_factory=dict)
-    # Recent Room temperature readings per Room (oldest first) for window detection.
+    # Recent readings per Room (oldest first) for window detection: the TRV sensor where there
+    # is one, else the Room temperature; and the external Room sensor on its own.
     temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
+    external_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
+    # Rooms whose radiator is cooling down after heating: their TRV sensor falls although the
+    # Room does not, so window detection only trusts the external sensor there.
+    cooling_rooms: frozenset[str] = frozenset()
     # Learned per Room (see insights.py): open-window drop, extra rise after a call ends, and
     # external-minus-TRV sensor offset. Missing while there is too little data.
     window_thresholds: Mapping[str, float] = field(default_factory=dict)
@@ -184,6 +197,8 @@ class EngineInput:
     learned_offsets: Mapping[str, float] = field(default_factory=dict)
     # Rooms that have called for heat for a long time without warming up.
     stalled: frozenset[str] = frozenset()
+    # Rooms whose TRV takes no external temperature (its setpoint may be corrected instead).
+    trv_without_external: frozenset[str] = frozenset()
 
 
 Reason = Literal[
@@ -195,11 +210,11 @@ Reason = Literal[
 class Decision:
     trv_setpoints: Mapping[str, float]
     # None: nothing held yet and a first write is currently blocked (backoff); do not write.
-    easycontrol_setpoint: float | None
-    # Write easycontrol_setpoint even though unchanged (a manual hold ended and it still differs).
-    easycontrol_reassert: bool = False
-    # End of the manual hold on the EasyControl (carried back via Commands); no writes before it.
-    easycontrol_hold_until: datetime | None = None
+    boiler_setpoint: float | None
+    # Write boiler_setpoint even though unchanged (a manual hold ended and it still differs).
+    boiler_reassert: bool = False
+    # End of the manual hold on the boiler thermostat (carried back via Commands); no writes before it.
+    boiler_hold_until: datetime | None = None
     # Rooms whose TRV setpoint must be re-written although unchanged (lost write).
     trv_rewrite: frozenset[str] = frozenset()
     # Rooms left alone after a manual TRV change (room -> target at that time), and retry counts.
@@ -215,6 +230,11 @@ class Decision:
     hand_set: Mapping[str, float] = field(default_factory=dict)
     # Rooms whose unmet demand calls for the boiler (manual override not included).
     demand_rooms: tuple[str, ...] = ()
+    # Open-radiator Rooms warm enough to stop every boiler call (carried back via Commands).
+    open_radiators_capping: frozenset[str] = frozenset()
+    # What to write to each TRV: its Room's target, corrected for TRVs that take no external
+    # temperature. Empty means "the same as trv_setpoints".
+    trv_writes: Mapping[str, float] = field(default_factory=dict)
 
 
 ALL_DAYS = frozenset(range(7))

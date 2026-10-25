@@ -65,7 +65,7 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "| Room's person is away, kept at 16 degrees | The person this room is for is away: schedule skipped. Warms up when they are back or on their way. |\n"
             "| Waiting for the floor heating to warm up first, kept at 12 degrees | The slow floor heating warms up first. Idle radiators stay closed meanwhile. |\n"
             "| Set by hand to 22 degrees, until 17:00 | You turned the valve yourself. Left alone until the room's target changes. The boiler is called if the room is colder than you set. |\n"
-            "| Vacation until Mon 00:00, kept at 12 degrees | Vacation mode: just above freezing. The house warms up before you return. |\n\n"
+            "| Vacation until Sat 16:20, kept at 12 degrees | Vacation mode: just above freezing. Each room starts warming up in time for your return. |\n\n"
             "Strongest rule wins: Boost, open window, Vacation, nobody home, schedule.",
         ),
         (
@@ -80,9 +80,9 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "Boiler page",
             "- **Boiler is being called**: only when a room that should be warm is clearly too cold.\n"
             "- **Rooms asking for heat**: who caused the call.\n"
-            "- **Target we set / Last sent / Result**: what we told the EasyControl, when, and if it worked.\n"
-            "- **Paused after an error**: a short wait so the Bosch cloud is not flooded.\n"
-            "- **Manual change on the EasyControl**: you changed it yourself. Respected for about two hours.\n"
+            "- **Target we set / Last sent / Result**: what we told the boiler thermostat, when, and if it worked.\n"
+            "- **Paused after an error**: a short wait so the thermostat (or its cloud) is not flooded.\n"
+            "- **Manual change on the boiler thermostat**: you changed it yourself. Respected for about two hours.\n"
             "- **Manual room override**: for rooms you heat by hand. Calls the boiler for a set time. Cancel to stop early.",
         ),
         (
@@ -93,9 +93,18 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "The Manual room override still starts the boiler.",
         ),
         (
+            "Vacation and coming home",
+            "**Vacation**: pick when you are back (*Back from vacation*) and turn on *Vacation mode*, "
+            "or put an event such as \"Vacation\" in the vacation calendar set in the options: it "
+            "switches on and off by itself. The house holds frost protection; each room starts "
+            "warming up just in time for your return.\n\n"
+            "**Coming home**: when a phone with the Home Assistant app is on its way home, the house "
+            "starts warming up so it is comfortable when you arrive. No zones to draw.",
+        ),
+        (
             "What the system learns",
             "Per room, kept across restarts, standard values until there is data:\n"
-            "- **Pre-heat time**: how early to start.\n"
+            "- **Pre-heat time**: how fast each room warms up, so it starts early enough for how cold it is now.\n"
             "- **Open window**: what a normal temperature change is, so a window is spotted sooner.\n"
             "- **Coast**: how far a room keeps warming after the boiler stops, so the boiler stops earlier.\n"
             "- **Thermometers**: the difference between the valve's and the room's thermometer.\n"
@@ -128,7 +137,7 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "| Persoon van deze ruimte is weg, op 16 graden gehouden | De persoon voor wie deze ruimte is, is weg: schema overgeslagen. Warmt op als diegene terug of onderweg is. |\n"
             "| Wacht tot de vloerverwarming is opgewarmd, op 12 graden gehouden | De trage vloerverwarming warmt eerst op. Ongebruikte radiatoren blijven intussen dicht. |\n"
             "| Handmatig ingesteld op 22 graden, tot 17:00 | Je draaide de kraan zelf. Met rust gelaten tot het doel van de ruimte verandert. De boiler wordt gevraagd als de ruimte kouder is dan jouw instelling. |\n"
-            "| Vakantie tot ma 00:00, op 12 graden gehouden | Vakantiemodus: net boven vorst. Het huis warmt op voor je terugkomt. |\n\n"
+            "| Vakantie tot za 16:20, op 12 graden gehouden | Vakantiemodus: net boven vorst. Elke ruimte begint op tijd op te warmen voor je terugkomst. |\n\n"
             "Sterkste regel wint: Boost, open raam, Vakantie, niemand thuis, schema.",
         ),
         (
@@ -143,9 +152,9 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "Pagina Boiler",
             "- **Boiler wordt aangeroepen**: alleen als een ruimte die warm moet zijn duidelijk te koud is.\n"
             "- **Ruimtes die warmte vragen**: wie de aanvraag veroorzaakte.\n"
-            "- **Doel / Laatst verstuurd / Resultaat**: wat we de EasyControl opdroegen, wanneer, en of het lukte.\n"
-            "- **Gepauzeerd na een fout**: even wachten zodat de Bosch-cloud niet overspoeld wordt.\n"
-            "- **Handmatige wijziging op de EasyControl**: je veranderde het zelf. Ongeveer twee uur gerespecteerd.\n"
+            "- **Doel / Laatst verstuurd / Resultaat**: wat we de ketelthermostaat opdroegen, wanneer, en of het lukte.\n"
+            "- **Gepauzeerd na een fout**: even wachten zodat de thermostaat (of zijn cloud) niet overspoeld wordt.\n"
+            "- **Handmatige wijziging op de ketelthermostaat**: je veranderde het zelf. Ongeveer twee uur gerespecteerd.\n"
             "- **Handmatige ruimte-override**: voor ruimtes die je met de hand verwarmt. Roept de boiler een ingestelde tijd aan. Annuleer om eerder te stoppen.",
         ),
         (
@@ -156,9 +165,18 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "wacht dan. De Handmatige ruimte-override zet de boiler wel aan.",
         ),
         (
+            "Vakantie en thuiskomen",
+            "**Vakantie**: kies wanneer je terug bent (*Terug van vakantie*) en zet *Vakantiemodus* "
+            "aan, of zet een afspraak zoals \"Vakantie\" in de vakantieagenda uit de opties: die gaat "
+            "dan vanzelf aan en uit. Het huis blijft op vorstbescherming; elke ruimte begint precies "
+            "op tijd op te warmen voor je terugkomst.\n\n"
+            "**Thuiskomen**: als een telefoon met de Home Assistant-app onderweg naar huis is, begint "
+            "het huis op te warmen zodat het aangenaam is als je aankomt. Geen zones nodig.",
+        ),
+        (
             "Wat het systeem leert",
             "Per ruimte, bewaard na een herstart, standaardwaarden tot er gegevens zijn:\n"
-            "- **Voorverwarmtijd**: hoe vroeg beginnen.\n"
+            "- **Voorverwarmtijd**: hoe snel elke ruimte opwarmt, zodat hij vroeg genoeg begint voor hoe koud hij nu is.\n"
             "- **Open raam**: wat een normale temperatuurwijziging is, zodat een raam sneller opvalt.\n"
             "- **Nawarmen**: hoever een ruimte blijft opwarmen nadat de boiler stopt, zodat de boiler eerder stopt.\n"
             "- **Thermometers**: het verschil tussen de thermometer van de kraan en die van de ruimte.\n"
@@ -194,8 +212,9 @@ CATALOG: dict[str, dict[str, str]] = {
         "hold.respecting": "Respecting a manual change until {at}",
         # alerts
         "alert.a_room": "a room",
-        "alert.bosch_outage": (
-            "The Bosch cloud cannot be reached, so the boiler cannot be called reliably. "
+        "alert.resolved": "Resolved: {text}",
+        "alert.boiler_outage": (
+            "The boiler thermostat cannot be reached, so the boiler cannot be called reliably. "
             "The radiator valves keep following the schedule."
         ),
         "alert.trv_offline": "The radiator valve in {room} is not responding.",
@@ -236,13 +255,13 @@ CATALOG: dict[str, dict[str, str]] = {
         "entity.status": "Smart Heating status",
         "entity.active_alerts": "Smart Heating active alerts",
         "entity.boiler_demand_rooms": "Smart Heating boiler demand from",
-        "entity.boiler_target": "Smart Heating boiler target (EasyControl)",
+        "entity.boiler_target": "Smart Heating boiler target",
         "entity.boiler_last_write": "Smart Heating boiler last write",
         "entity.boiler_write_result": "Smart Heating boiler last write result",
         "entity.boiler_backoff": "Smart Heating boiler backoff",
         "entity.boiler_manual_hold": "Smart Heating boiler manual hold",
         "entity.boiler_call": "Smart Heating boiler called",
-        "entity.vacation_days": "Vacation days",
+        "entity.vacation_return": "Back from vacation",
         "entity.vacation_mode": "Vacation mode",
         "entity.alerts_unit": "alerts",
         "climate.set_refused": (
@@ -272,11 +291,11 @@ CATALOG: dict[str, dict[str, str]] = {
         "dash.valve_demand": "Valve heating demand",
         "dash.boiler_called": "Boiler is being called",
         "dash.demand_rooms": "Rooms asking for heat",
-        "dash.target": "Target we set on the EasyControl",
-        "dash.last_sent": "Last sent to the EasyControl",
+        "dash.target": "Target we set on the boiler thermostat",
+        "dash.last_sent": "Last sent to the boiler thermostat",
         "dash.write_result": "Result of last send",
         "dash.paused": "Paused after an error",
-        "dash.manual_hold": "Manual change on the EasyControl",
+        "dash.manual_hold": "Manual change on the boiler thermostat",
         "dash.table.room": "Room",
         "dash.table.now": "Now",
         "dash.table.aiming": "Aiming for",
@@ -312,13 +331,14 @@ CATALOG: dict[str, dict[str, str]] = {
         "room_error.invalid_line": "invalid schedule line {text}",
         "room_error.empty_window": "empty window in {text}",
         "room_error.name_required": "name is required",
+        "room_error.name_needs_letters": "the name needs at least one letter or digit",
         "room_error.floor_needs_sensor": "a floor heating or open-radiator room needs a temperature sensor",
         "room_error.trv_required": "trv entity is required (or mark the room as manual)",
         "room_error.comfort_range": "comfort must be {low}-{high}",
         "room_error.frost_min": "frost hold must be at least {low}",
         "room_error.temp_order": "need frost hold <= setback <= comfort",
         "room_error.out_of_range": "{key} must be {low}-{high}",
-        "room_error.duplicate_name": "a room with that name already exists",
+        "room_error.duplicate_name": "a room with that name (or one that only differs in case or punctuation) already exists",
         "room_error.duplicate_trv": "that trv entity is already used by another room",
         "room_error.unknown_room": "unknown room {text}",
     },
@@ -336,8 +356,9 @@ CATALOG: dict[str, dict[str, str]] = {
         "hold.no": "Nee",
         "hold.respecting": "Handmatige wijziging gerespecteerd tot {at}",
         "alert.a_room": "een ruimte",
-        "alert.bosch_outage": (
-            "De Bosch-cloud is onbereikbaar, dus de boiler kan niet betrouwbaar worden aangeroepen. "
+        "alert.resolved": "Opgelost: {text}",
+        "alert.boiler_outage": (
+            "De ketelthermostaat is onbereikbaar, dus de boiler kan niet betrouwbaar worden aangeroepen. "
             "De radiatorkranen blijven het schema volgen."
         ),
         "alert.trv_offline": "De radiatorkraan in {room} reageert niet.",
@@ -376,13 +397,13 @@ CATALOG: dict[str, dict[str, str]] = {
         "entity.status": "Smart Heating status",
         "entity.active_alerts": "Smart Heating actieve meldingen",
         "entity.boiler_demand_rooms": "Smart Heating boiler-aanvraag van",
-        "entity.boiler_target": "Smart Heating boilerdoel (EasyControl)",
+        "entity.boiler_target": "Smart Heating boilerdoel",
         "entity.boiler_last_write": "Smart Heating boiler laatst verstuurd",
         "entity.boiler_write_result": "Smart Heating boiler resultaat laatste verzending",
         "entity.boiler_backoff": "Smart Heating boiler pauze",
         "entity.boiler_manual_hold": "Smart Heating boiler handmatige wijziging",
         "entity.boiler_call": "Smart Heating boiler aangeroepen",
-        "entity.vacation_days": "Vakantiedagen",
+        "entity.vacation_return": "Terug van vakantie",
         "entity.vacation_mode": "Vakantiemodus",
         "entity.alerts_unit": "meldingen",
         "climate.set_refused": (
@@ -411,11 +432,11 @@ CATALOG: dict[str, dict[str, str]] = {
         "dash.valve_demand": "Warmtevraag van de kraan",
         "dash.boiler_called": "Boiler wordt aangeroepen",
         "dash.demand_rooms": "Ruimtes die warmte vragen",
-        "dash.target": "Doel dat we op de EasyControl hebben gezet",
-        "dash.last_sent": "Laatst naar de EasyControl gestuurd",
+        "dash.target": "Doel dat we op de ketelthermostaat hebben gezet",
+        "dash.last_sent": "Laatst naar de ketelthermostaat gestuurd",
         "dash.write_result": "Resultaat laatste verzending",
         "dash.paused": "Gepauzeerd na een fout",
-        "dash.manual_hold": "Handmatige wijziging op de EasyControl",
+        "dash.manual_hold": "Handmatige wijziging op de ketelthermostaat",
         "dash.table.room": "Ruimte",
         "dash.table.now": "Nu",
         "dash.table.aiming": "Doel",
@@ -449,13 +470,14 @@ CATALOG: dict[str, dict[str, str]] = {
         "room_error.invalid_line": "ongeldige schemaregel {text}",
         "room_error.empty_window": "leeg tijdvak in {text}",
         "room_error.name_required": "naam is verplicht",
+        "room_error.name_needs_letters": "de naam heeft minstens één letter of cijfer nodig",
         "room_error.floor_needs_sensor": "een ruimte met vloerverwarming of open radiatoren heeft een temperatuursensor nodig",
         "room_error.trv_required": "radiatorkraan is verplicht (of markeer de ruimte als handmatig)",
         "room_error.comfort_range": "comfort moet {low}-{high} zijn",
         "room_error.frost_min": "vorstbescherming moet minstens {low} zijn",
         "room_error.temp_order": "vorstbescherming <= lage temperatuur <= comfort is vereist",
         "room_error.out_of_range": "{key} moet {low}-{high} zijn",
-        "room_error.duplicate_name": "er bestaat al een ruimte met die naam",
+        "room_error.duplicate_name": "er bestaat al een ruimte met die naam (of een die alleen in hoofdletters of leestekens verschilt)",
         "room_error.duplicate_trv": "die radiatorkraan wordt al door een andere ruimte gebruikt",
         "room_error.unknown_room": "onbekende ruimte {text}",
     },

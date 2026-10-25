@@ -3,28 +3,28 @@ Boost > window-open pause > Vacation > Away > schedule > setback)."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from .models import EngineInput, RoomConfig
+from .schedule import lead_time_for
 
 
-def vacation_end(start: datetime, days: int) -> datetime:
-    """When Vacation mode ends: the start of the arrival day (start + N days).
+def vacation_release(room: RoomConfig, inp: EngineInput) -> datetime | None:
+    """When the Room leaves Vacation mode: one lead time before the return, so it is warm then.
 
-    Rooms are back on schedule (with pre-heat) from midnight, so they are warm
-    when the household arrives that day.
-    """
-    arrival = start + timedelta(days=days)
-    return arrival.replace(hour=0, minute=0, second=0, microsecond=0)
+    The lead time is the Room's current one, which grows with how far it has cooled down."""
+    if inp.vacation_until is None:
+        return None
+    return inp.vacation_until - lead_time_for(room, inp.learned)
 
 
 def presence_setpoint(room: RoomConfig, inp: EngineInput) -> float | None:
     """Target forced by Vacation or Away, or None to follow the schedule."""
-    until = inp.vacation_until
-    if until is not None:
-        # Once Vacation has ended the schedule applies even if nobody is home
-        # yet, so rooms are warm on arrival.
-        return room.frost_hold if inp.now < until else None
+    release = vacation_release(room, inp)
+    if release is not None:
+        # Once released the schedule applies even if nobody is home yet, so rooms are warm on
+        # arrival.
+        return room.frost_hold if inp.now < release else None
     if inp.anyone_home:
         return None
     if inp.away_since is not None and inp.now - inp.away_since >= inp.config.prolonged_absence:

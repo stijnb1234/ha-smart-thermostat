@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import time, timedelta
+from datetime import UTC, time, timedelta
 
 from custom_components.smart_heating.engine import (
     Commands,
@@ -19,8 +19,8 @@ OLD = 16.0
 def make(clock, observed, written_ago=15, previous=OLD, retries=0, manual=None, target_written=TARGET):
     cfg = EngineConfig(
         rooms=(RoomConfig(name="office", comfort=TARGET, schedule=ALWAYS),),
-        easycontrol_low=10.0,
-        easycontrol_high=22.0,
+        boiler_low=10.0,
+        boiler_high=22.0,
     )
     cmds = Commands(
         trv_setpoints={"office": target_written},
@@ -128,7 +128,7 @@ def test_hand_set_trv_calls_boiler_when_room_colder_than_hand_value(clock):
     assert d.hand_set == {"office": 22.0}
     assert d.reasons["office"] == "manual"
     assert d.demand_rooms == ("office",)
-    assert d.easycontrol_setpoint == 22.0  # EasyControl high
+    assert d.boiler_setpoint == 22.0  # boiler thermostat high
 
 
 def test_hand_set_at_or_below_setback_does_not_call_boiler(clock):
@@ -148,11 +148,11 @@ def test_hand_set_in_warm_room_does_not_call_boiler(clock):
 def test_trv_off_alert():
     from custom_components.smart_heating.engine.alerts import compute_alerts
 
-    cfg = EngineConfig(rooms=(RoomConfig(name="office"),), easycontrol_low=10.0, easycontrol_high=22.0)
-    from datetime import datetime, timezone
+    cfg = EngineConfig(rooms=(RoomConfig(name="office"),), boiler_low=10.0, boiler_high=22.0)
+    from datetime import datetime
 
     inp = EngineInput(
-        config=cfg, now=datetime(2026, 1, 1, tzinfo=timezone.utc), anyone_home=True,
+        config=cfg, now=datetime(2026, 1, 1, tzinfo=UTC), anyone_home=True,
         learned={}, last_commands=Commands(), trv_off=frozenset({"office"}),
     )
     assert [a.code for a in compute_alerts(inp)] == ["trv_off"]

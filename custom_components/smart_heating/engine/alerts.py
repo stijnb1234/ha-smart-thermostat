@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Mapping
+from datetime import datetime, timedelta
 
 from .models import Alert, EngineInput
 
 
-def bosch_outage(inp: EngineInput) -> bool:
+def thermostat_outage(inp: EngineInput) -> bool:
     w = inp.last_write
     return (
         w is not None
@@ -22,9 +22,9 @@ def compute_alerts(inp: EngineInput) -> tuple[Alert, ...]:
     """Every alert whose condition holds right now (the active set)."""
     cfg = inp.config.alerts
     alerts: list[Alert] = []
-    if bosch_outage(inp):
+    if thermostat_outage(inp):
         alerts.append(
-            Alert("bosch_outage", None, "Bosch cloud unreachable; boiler call is throttled, TRVs keep following the schedule")
+            Alert("boiler_outage", None, "Boiler thermostat unreachable; boiler call is throttled, TRVs keep following the schedule")
         )
     for room in inp.config.rooms:
         name = room.name
@@ -51,12 +51,16 @@ def track_unmet(
     now: datetime,
     room_temps: Mapping[str, float],
     targets: Mapping[str, float],
+    margins: Mapping[str, float] | None = None,
 ) -> dict[str, datetime]:
-    """Since when each Room has continuously been below its target (caller keeps the result)."""
+    """Since when each Room has continuously been below its target by more than its margin
+    (caller keeps the result). Pass only targets the boiler is called for (see `wanted_targets`):
+    a Room left to drift at setback is not failing to reach anything."""
+    margins = margins or {}
     result: dict[str, datetime] = {}
     for room, temp in room_temps.items():
         target = targets.get(room)
-        if target is not None and temp < target:
+        if target is not None and temp < target - margins.get(room, 0.0):
             result[room] = previous.get(room, now)
     return result
 
@@ -89,4 +93,26 @@ class AlertNotifier:
             del self.history[:-HISTORY_LIMIT]
         cleared = tuple(a for k, a in self._active.items() if k not in current)
         self._active = current
+        return AlertChanges(raised, cleared)
+
+
+class AlertPush:
+    """Which alerts to push to phones: an alert once it has been active for `delay` (so a
+    short flap stays quiet), and its resolution only if it was pushed."""
+
+    def __init__(self, delay: timedelta) -> None:
+        self._delay = delay
+        self._since: dict[tuple[str, str | None], datetime] = {}
+        self._pushed: dict[tuple[str, str | None], Alert] = {}
+
+    def update(self, alerts: tuple[Alert, ...], now: datetime) -> AlertChanges:
+        current = {(a.code, a.room): a for a in alerts}
+        self._since = {k: self._since.get(k, now) for k in current}
+        raised = tuple(
+            a for k, a in current.items() if k not in self._pushed and now - self._since[k] >= self._delay
+        )
+        self._pushed.update({(a.code, a.room): a for a in raised})
+        cleared = tuple(a for k, a in self._pushed.items() if k not in current)
+        for a in cleared:
+            del self._pushed[(a.code, a.room)]
         return AlertChanges(raised, cleared)

@@ -62,3 +62,30 @@ class StallTracker:
 
     def stalled(self, now: datetime) -> frozenset[str]:
         return frozenset(r for r, (at, _) in self._since.items() if now - at >= STALL_AFTER)
+
+
+# Long enough for the remaining fall to stay below the lowest learned window threshold (0.5 K).
+RADIATOR_COOLDOWN = timedelta(minutes=60)
+
+
+class RadiatorCooldown:
+    """Rooms whose radiator was hot until recently and is now cooling down.
+
+    A radiator is hot while the boiler runs and its Room is below target (the valve is open).
+    For `RADIATOR_COOLDOWN` after that ends the TRV's own sensor, mounted on the valve, keeps
+    falling although the Room does not cool: open-window detection must not trust it then.
+    """
+
+    def __init__(self) -> None:
+        self._hot: dict[str, bool] = {}
+        self._cooling_since: dict[str, datetime] = {}
+
+    def observe(self, room: str, now: datetime, hot: bool) -> None:
+        if hot:
+            self._cooling_since.pop(room, None)
+        elif self._hot.get(room, False):
+            self._cooling_since[room] = now
+        self._hot[room] = hot
+
+    def cooling(self, now: datetime) -> frozenset[str]:
+        return frozenset(r for r, since in self._cooling_since.items() if now - since < RADIATOR_COOLDOWN)

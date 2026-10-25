@@ -11,31 +11,34 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .coordinator import SmartHeatingCoordinator
 from .dashboard import entity_id
+from .engine import RoomConfig
 from .explain import summarize
 from .i18n import tr
 from .status import (
     alert_sentence,
     backoff_text,
-    hold_text,
     boiler_status,
     demand_text,
     heating_rooms,
+    hold_text,
     status_text,
 )
 
 REASONS = ["boost", "window", "vacation", "away", "occupant_away", "manual", "floor_first", "pre_heat", "schedule", "setback"]
 
 
-class _RoomSensor(CoordinatorEntity, SensorEntity):
+
+class _RoomSensor(CoordinatorEntity[SmartHeatingCoordinator], SensorEntity):
     key = ""
 
-    def __init__(self, coordinator, entry_id: str, room: str) -> None:
+    def __init__(self, coordinator, entry_id: str, room: RoomConfig) -> None:
         super().__init__(coordinator)
-        self._room = room
-        self._attr_name = tr(coordinator.lang, f"entity.{self.key}", room=room)
-        self._attr_unique_id = f"{entry_id}_{self.key}_{room}"
-        self.entity_id = entity_id("sensor", room, self.key)
+        self._room = room.name
+        self._attr_name = tr(coordinator.lang, f"entity.{self.key}", room=room.name)
+        self._attr_unique_id = f"{entry_id}_{self.key}_{room.id}"
+        self.entity_id = entity_id("sensor", room.id, self.key)
 
     @property
     def _explanation(self):
@@ -97,7 +100,7 @@ class LeadTimeSensor(_RoomSensor):
         return round(lead.total_seconds() / 60) if lead else None
 
 
-class _SystemSensor(CoordinatorEntity, SensorEntity):
+class _SystemSensor(CoordinatorEntity[SmartHeatingCoordinator], SensorEntity):
     """System-wide sensor: smart_heating_<key>."""
 
     key = ""
@@ -117,7 +120,7 @@ class _SystemSensor(CoordinatorEntity, SensorEntity):
 class StatusSensor(_SystemSensor):
     key = "status"
 
-    def _facts(self):
+    def _facts(self) -> tuple[tuple[str, ...], bool, bool, bool]:
         data = self.coordinator.data
         inp, decision = data.inp, data.decision
         heating = heating_rooms(
@@ -252,7 +255,7 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
     shared = hass.data[DOMAIN][entry.entry_id]
     coordinator = shared["coordinator"]
     async_add_entities(
-        cls(coordinator, entry.entry_id, r.name)
+        cls(coordinator, entry.entry_id, r)
         for r in shared["rooms"]
         for cls in (ReasonSensor, SummarySensor, NextChangeSensor, LeadTimeSensor)
     )

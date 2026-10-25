@@ -1,14 +1,14 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import get_args
 
 from custom_components.smart_heating.dashboard import build_dashboard
+from custom_components.smart_heating.engine import Alert
+from custom_components.smart_heating.engine.models import Reason
 from custom_components.smart_heating.explain import Explanation, summarize
 from custom_components.smart_heating.i18n import CATALOG, number, pick_language, tr
 from custom_components.smart_heating.status import alert_sentence, status_text
-from custom_components.smart_heating.engine import Alert
-from custom_components.smart_heating.engine.models import Reason
-from typing import get_args
 
-NOW = datetime(2026, 10, 17, 10, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 17, 10, 0, tzinfo=UTC)
 
 
 def test_pick_language():
@@ -28,7 +28,7 @@ def test_missing_key_falls_back_to_english_then_key():
 
 def test_dutch_sentences_and_numbers():
     assert number(19.5, "nl") == "19,5" and number(16.0, "nl") == "16"
-    e = Explanation("setback", 16.0, datetime(2026, 10, 19, 8, 50, tzinfo=timezone.utc), 19.5)
+    e = Explanation("setback", 16.0, datetime(2026, 10, 19, 8, 50, tzinfo=UTC), 19.5)
     assert summarize(e, NOW, "nl") == "Warm vanaf ma 08:50"
     assert summarize(e, NOW, "en") == "Warm from Mon 08:50"
     assert summarize(Explanation("away", 16.5, None), NOW, "nl") == "Niemand thuis, op 16,5 graden gehouden"
@@ -50,7 +50,7 @@ def test_dutch_dashboard_has_dutch_titles_and_overview_keeps_all_controls():
     text = str(d["views"][0])
     for ent in (
         "switch.smart_heating_vacation_mode",
-        "number.smart_heating_vacation_days",
+        "datetime.smart_heating_vacation_return",
         "button.smart_heating_manual_room_override",
         "button.smart_heating_cancel_manual_room_override",
         "button.smart_heating_werkkamer_boost",

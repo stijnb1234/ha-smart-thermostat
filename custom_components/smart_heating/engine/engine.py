@@ -1,43 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from typing import Mapping
+from collections.abc import Mapping
+from datetime import datetime
 
 from .alerts import compute_alerts
-from .boiler import demand_rooms, easycontrol_setpoint
-from .trv import check_trvs
-from .models import EPSILON, Decision, EngineInput, Reason, RoomConfig, ScheduleWindow
+from .boiler import boiler_setpoint, demand_rooms
+from .compensation import trv_writes
+from .models import EPSILON, Decision, EngineInput, Reason, RoomConfig
 from .overrides import boosted_rooms, manual_override_active
 from .presence import presence_setpoint
+from .schedule import in_window, wants_comfort
 from .sensors import select_temperature
+from .trv import check_trvs
 from .window import window_pauses
-
-
-def _window_active(window: ScheduleWindow, now: datetime) -> bool:
-    t = now.time()
-    today = now.weekday()
-    if window.start < window.end:
-        return today in window.days and window.start <= t < window.end
-    # Runs past midnight: evening part belongs to today, morning part to yesterday.
-    return (today in window.days and t >= window.start) or (
-        (today - 1) % 7 in window.days and t < window.end
-    )
-
-
-def lead_time_for(room: RoomConfig, learned: Mapping[str, timedelta]) -> timedelta:
-    """Pre-heat lead time for a room: the learned value if any, else the fixed one."""
-    return learned.get(room.name, room.lead_time)
-
-
-def in_window(room: RoomConfig, now: datetime) -> bool:
-    """Inside one of the room's comfort windows right now (no pre-heat)."""
-    return any(_window_active(w, now) for w in room.schedule)
-
-
-def wants_comfort(room: RoomConfig, now: datetime, learned: Mapping[str, timedelta]) -> bool:
-    """In a window now, or a window starts within the room's lead time."""
-    ahead = now + lead_time_for(room, learned)
-    return any(_window_active(w, now) or _window_active(w, ahead) for w in room.schedule)
 
 
 def _needs_push(room: str, value: float, inp: EngineInput) -> bool:
@@ -101,13 +76,28 @@ def _floor_first(
             reasons[room.name] = "floor_first"
 
 
-def decide(inp: EngineInput) -> Decision:
-    """Return desired TRV setpoints with reasons, EasyControl setpoint and alerts.
+def _open_radiators_capping(inp: EngineInput, room_temps: Mapping[str, float]) -> frozenset[str]:
+    """Open-radiator Rooms that stop every boiler call: from reaching comfort until they have
+    cooled more than the demand hysteresis below it, so the call does not flap at the edge."""
+    before = inp.last_commands.open_radiators_capping
+    capping = set()
+    for room in inp.config.rooms:
+        temp = room_temps.get(room.name)
+        if not room.open_radiators or temp is None:
+            continue
+        threshold = room.comfort - (inp.config.demand_hysteresis if room.name in before else 0.0)
+        if temp >= threshold - EPSILON:
+            capping.add(room.name)
+    return frozenset(capping)
 
-    The EasyControl call is raised while a Room heating to comfort has unmet demand
+
+def decide(inp: EngineInput) -> Decision:
+    """Return desired TRV setpoints with reasons, boiler thermostat setpoint and alerts.
+
+    The boiler call is raised while a Room heating to comfort has unmet demand
     (or a Manual-room override is active) and lowered otherwise, subject to the
-    debounce/backoff policy. A Bosch outage only throttles EasyControl writes and
-    raises an alert; TRV control is independent of the Bosch cloud.
+    debounce/backoff policy. An outage only throttles boiler thermostat writes and
+    raises an alert; TRV control is independent of the boiler thermostat.
     """
     room_temps: dict[str, float] = {}
     pushes: dict[str, float] = {}
@@ -127,22 +117,27 @@ def decide(inp: EngineInput) -> Decision:
     for room in inp.config.rooms:
         trv_setpoints[room.name], reasons[room.name] = _target(room, inp, boosted, paused)
     _floor_first(inp, trv_setpoints, reasons, room_temps)
-    trv = check_trvs(inp, trv_setpoints)
-    hand_set = {r: inp.trv_observed[r] for r in trv.manual if r in inp.trv_observed}
+    writes = trv_writes(inp, trv_setpoints)
+    trv = check_trvs(inp, writes)
+    # In Room terms: a corrected TRV's hand-set value minus the correction it was given.
+    hand_set = {
+        r: inp.trv_observed[r] - (writes[r] - trv_setpoints[r]) for r in trv.manual if r in inp.trv_observed
+    }
     for room_name in hand_set:
         reasons[room_name] = "manual"
     calling = demand_rooms(inp.config, trv_setpoints, room_temps, hand_set, inp.coast)
-    if any(r.open_radiators and room_temps.get(r.name, -1e9) >= r.comfort - EPSILON for r in inp.config.rooms):
+    capping = _open_radiators_capping(inp, room_temps)
+    if capping:
         calling = ()  # a room with open radiators is warm enough: stop heating the whole house
     demand = bool(calling) or manual_override_active(
         inp.manual_overrides, inp.now
     )
-    ec_setpoint, reassert, ec_hold = easycontrol_setpoint(inp, demand)
+    ec_setpoint, reassert, ec_hold = boiler_setpoint(inp, demand)
     return Decision(
         trv_setpoints=trv_setpoints,
-        easycontrol_setpoint=ec_setpoint,
-        easycontrol_reassert=reassert,
-        easycontrol_hold_until=ec_hold,
+        boiler_setpoint=ec_setpoint,
+        boiler_reassert=reassert,
+        boiler_hold_until=ec_hold,
         trv_rewrite=trv.rewrite,
         trv_manual=trv.manual,
         trv_retries=trv.retries,
@@ -153,4 +148,6 @@ def decide(inp: EngineInput) -> Decision:
         window_paused_until=paused,
         demand_rooms=calling,
         hand_set=hand_set,
+        open_radiators_capping=capping,
+        trv_writes=writes,
     )

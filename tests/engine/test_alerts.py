@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from custom_components.smart_heating.engine import (
+    Alert,
     AlertConfig,
     AlertNotifier,
     Commands,
@@ -15,17 +16,17 @@ from custom_components.smart_heating.engine import (
 
 
 def make_input(clock, **overrides) -> EngineInput:
-    defaults = dict(
-        config=EngineConfig(
-            rooms=(RoomConfig(name="bedroom"),), easycontrol_low=10.0, easycontrol_high=22.0
+    defaults = {
+        "config": EngineConfig(
+            rooms=(RoomConfig(name="bedroom"),), boiler_low=10.0, boiler_high=22.0
         ),
-        now=clock.now(),
-        anyone_home=True,
-        learned={},
-        last_commands=Commands(),
-        trv_temps={"bedroom": SensorReading(17.0, clock.now())},
-        trv_last_seen={"bedroom": clock.now()},
-    )
+        "now": clock.now(),
+        "anyone_home": True,
+        "learned": {},
+        "last_commands": Commands(),
+        "trv_temps": {"bedroom": SensorReading(17.0, clock.now())},
+        "trv_last_seen": {"bedroom": clock.now()},
+    }
     defaults.update(overrides)
     return EngineInput(**defaults)
 
@@ -72,8 +73,8 @@ def test_room_never_reaches_target_uses_configurable_window(clock):
     )
     cfg = EngineConfig(
         rooms=(RoomConfig(name="bedroom"),),
-        easycontrol_low=10.0,
-        easycontrol_high=22.0,
+        boiler_low=10.0,
+        boiler_high=22.0,
         alerts=AlertConfig(target_window=timedelta(hours=1)),
     )
     since = clock.now() - timedelta(hours=1, minutes=1)
@@ -91,10 +92,10 @@ def test_track_unmet_starts_keeps_and_resets(clock):
     assert track_unmet(since, later, {"bedroom": 19.5}, {"bedroom": 19.5}) == {}
 
 
-def test_bosch_outage_alert_after_three_failed_writes(clock):
+def test_boiler_outage_alert_after_three_failed_writes(clock):
     assert decide(make_input(clock, last_write=failed(clock, 2))).alerts == ()
     d = decide(make_input(clock, last_write=failed(clock, 3)))
-    assert ("bosch_outage", None) in codes(d)
+    assert ("boiler_outage", None) in codes(d)
     ok = WriteResult(at=clock.now(), status="ok")
     assert decide(make_input(clock, last_write=ok)).alerts == ()
 
@@ -105,15 +106,15 @@ def test_outage_does_not_freeze_trv_setpoints_but_throttles_boiler_writes(clock)
 
     commands = Commands(
         trv_setpoints={"bedroom": 16.0},
-        easycontrol_setpoint=10.0,
-        easycontrol_changed_at=clock.now() - timedelta(hours=1),
+        boiler_setpoint=10.0,
+        boiler_changed_at=clock.now() - timedelta(hours=1),
     )
     boost = {"bedroom": Boost(clock.now(), timedelta(minutes=60))}
     d = decide(
         make_input(clock, last_commands=commands, last_write=failed(clock, 3), boosts=boost)
     )
     assert d.trv_setpoints == {"bedroom": 19.5}
-    assert d.easycontrol_setpoint == 10.0  # backoff still holds the boiler call
+    assert d.boiler_setpoint == 10.0  # backoff still holds the boiler call
 
 
 def test_stale_external_sensor_alerts_after_two_hours(clock):
@@ -134,3 +135,36 @@ def test_notifier_notifies_once_and_dismisses_on_resolution(clock):
     assert again.raised == () and again.cleared == ()
     done = n.update(())
     assert done.raised == () and [x.code for x in done.cleared] == ["low_battery"]
+
+
+def test_track_unmet_ignores_rooms_within_their_margin(clock):
+    t0 = clock.now()
+    # 19.3 against 19.5 with a 0.3 K margin: inside the band the boiler deliberately leaves alone.
+    assert track_unmet({}, t0, {"bedroom": 19.3}, {"bedroom": 19.5}, {"bedroom": 0.3}) == {}
+    assert track_unmet({}, t0, {"bedroom": 19.1}, {"bedroom": 19.5}, {"bedroom": 0.3}) == {"bedroom": t0}
+
+
+def test_push_waits_until_an_alert_has_lasted_the_delay_and_reports_resolution_once(clock):
+    from custom_components.smart_heating.engine.alerts import AlertPush
+
+    push = AlertPush(delay=timedelta(minutes=15))
+    offline = Alert("trv_offline", "bedroom")
+    t0 = clock.now()
+    assert push.update((offline,), t0).raised == ()
+    assert push.update((offline,), t0 + timedelta(minutes=14)).raised == ()
+    assert push.update((offline,), t0 + timedelta(minutes=15)).raised == (offline,)
+    assert push.update((offline,), t0 + timedelta(minutes=16)).raised == ()  # once
+    assert push.update((), t0 + timedelta(minutes=20)).cleared == (offline,)
+
+
+def test_push_ignores_an_alert_that_clears_within_the_delay(clock):
+    from custom_components.smart_heating.engine.alerts import AlertPush
+
+    push = AlertPush(delay=timedelta(minutes=15))
+    t0 = clock.now()
+    push.update((Alert("trv_offline", "bedroom"),), t0)
+    changes = push.update((), t0 + timedelta(minutes=5))
+    assert changes.raised == () and changes.cleared == ()
+    # A flap restarts the wait.
+    push.update((Alert("trv_offline", "bedroom"),), t0 + timedelta(minutes=6))
+    assert push.update((Alert("trv_offline", "bedroom"),), t0 + timedelta(minutes=20)).raised == ()

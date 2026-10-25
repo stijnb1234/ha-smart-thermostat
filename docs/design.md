@@ -1,50 +1,42 @@
-# Smart heating design
+# Smart Heating design
 
-Status: draft from the grilling session. Facts and sources: `docs/research/ha-heating-integrations.md`. Vocabulary: `GLOSSARY.md`. Decisions: `docs/adr/`.
+Vocabulary: `GLOSSARY.md`. Decisions: `docs/adr/`. Background research: `docs/research/`.
 
 ## Goal
 
-Lower gas use by heating only rooms with heat demand. Comfort at scheduled times is balanced against savings (about 1 degree of miss accepted if savings are meaningful).
+Lower gas use by heating only Rooms with heat demand, while keeping them comfortable at the
+times they are used. About one degree of miss is accepted when the savings are meaningful.
 
-## Rooms and defaults (all configurable in UI)
+## Shape
 
-| Room | Smart TRV | Demand source |
+One custom integration (ADR-0001), configured entirely in the UI. A pure decision engine with no
+Home Assistant imports sits in the middle; thin glue around it reads states and writes commands.
+
+```
+HA states ──> coordinator ──> Snapshot ──> Controller ──> engine.decide() ──> Decision
+                                              │                                  │
+                         learned data, trackers, presence/vacation        adapters write it
+                         (stores, keyed by Room id)                       (TRVs, boiler, alerts)
+```
+
+| Part | Module(s) | Role |
 |---|---|---|
-| Living left, living right, sunroom | yes | Living-area schedule 06:00-23:00 |
-| Working room | yes | Mon/Wed/Fri 08:00-17:00 (editable) |
-| Bedroom | yes | Son's work hours, plus short pre-bed warm-up |
-| Kitchen, bathroom | no (floor heating) | Later phase |
-| Other rooms | dumb TRVs | Manual boost button only |
+| Engine | `engine/` | Target per Room by precedence (Boost > window pause > Vacation > Away > schedule with pre-heat > setback), boiler call with debounce/backoff/manual hold, TRV lost-write and hand-change detection, alerts. Pure, tested with a fake clock. |
+| Controller | `controller.py` | State that lives between cycles: temperature history, unmet tracking, away start, lead times, radiator cooldown, learning (warm-ups, coast, window noise, sensor offset, habits). Pure. |
+| Presence | `arrival.py`, `presence_adapter.py` | Home, away, heading home from GPS (ADR-0007). |
+| Vacation | `vacation_plan.py`, `vacation.py` | Manual and calendar periods with an exact return (ADR-0007). |
+| Hardware | `boiler_adapter.py`, `trv_adapter.py`, `trv_devices.py` | Boiler call and TRVs behind adapters; TRV extras discovered on the device (ADR-0006). |
+| Config | `config_flow.py`, `rooms.py`, `settings.py`, `migration.py` | Options flow, Room validation and stable ids, config entry migrations. |
+| Insight | `explain.py`, `status.py`, `dashboard.py`, `report*.py`, `diagnostics.py` | Plain-language sentences, generated dashboard (ADR-0005), weekly report, diagnostics. |
 
-- Comfort 19.5 degC everywhere, setback 16 degC, frost-hold 12 degC.
-- Away (all HA persons not home): all rooms to setback; long absence or vacation mode to frost-hold.
-- External sensors: living right, kitchen, bedroom. Others use TRV sensor plus offset.
-- Ensuite doors ignored; fixed zones.
+## Defaults
 
-## Architecture
-
-One custom integration (`ADR-0001`):
-
-1. **Config/options flow**: rooms, entity mapping (TRV, external sensor), temperatures, schedules, presence persons.
-2. **Room model**: per room target (comfort/setback/frost-hold) from schedule, presence, boost, vacation.
-3. **Demand aggregator**: any room with unmet demand yields a boiler call; otherwise EasyControl returns to a low setpoint (`ADR-0002`).
-4. **TRV driver**: sets TRV setpoint over Z2M MQTT entities and pushes external temperature (`ADR-0003`).
-5. **Pre-heat learner**: per-room warm-up rate vs outdoor temperature, persisted with HA `Store`. Fixed lead time until enough data.
-6. **Window detector**: rate-of-fall rule, per-room sensitivity, pauses room for 15-30 min.
-7. **Reporting**: weekly report, alerts (TRV offline, low battery, target not reached), gas m3 per heating-degree-day against last year (needs gas meter entity).
-8. **Dashboard**: card or panel for schedules, boost buttons, vacation mode, guest toggle not required.
-
-## Phases
-
-0. **Probes** (`ADR-0004`): EasyControl write latency and persistence, 429 behaviour, TRV external-temperature fallback, Z2M report timing.
-1. **Core**: rooms, schedules, setback, demand aggregator, boiler call, boost.
-2. **Presence, vacation mode, alerts, weekly report.**
-3. **Learned pre-heat, window detection.**
-4. **Floor heating**: long pre-heat with other TRVs closed, via mixing-valve loops (controller details unknown).
+Comfort 19.5 °C, setback 16 °C, frost-hold 12 °C. Schedule presets: living area daily
+06:00–23:00, working room Mon/Wed/Fri 08:00–17:00, bedroom working hours plus a pre-bed warm-up.
+Timing defaults (debounce, backoff, settle times, lead time) are in
+`docs/research/phase0-findings.md`; all are configurable.
 
 ## Open items
 
-- Phase 0 results.
-- Dashboard form (standard cards vs custom card vs panel).
-- Floor-loop actuator type.
-- Gas meter entity for savings measurement.
+- More boiler adapters (relay switch, OpenTherm).
+- Floor-loop actuators: floor heating only calls the boiler today.

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -18,4 +18,4 @@ class FakeClock:
 
 @pytest.fixture
 def clock() -> FakeClock:
-    return FakeClock(datetime(2026, 1, 12, 3, 0, tzinfo=timezone.utc))
+    return FakeClock(datetime(2026, 1, 12, 3, 0, tzinfo=UTC))

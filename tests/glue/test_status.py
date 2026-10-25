@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from custom_components.smart_heating.engine import (
     Alert,
@@ -15,14 +15,14 @@ from custom_components.smart_heating.engine import (
 from custom_components.smart_heating.status import (
     alert_sentence,
     backoff_text,
-    hold_text,
     boiler_status,
     demand_text,
     heating_rooms,
+    hold_text,
     status_text,
 )
 
-UTC = timezone.utc
+UTC = UTC
 NOW = datetime(2026, 1, 12, 10, 0, tzinfo=UTC)
 LOW, HIGH = 10.0, 22.0
 
@@ -30,7 +30,7 @@ LOW, HIGH = 10.0, 22.0
 def make(temps, commands=None, last_write=None, boosts=None, overrides=None):
     rooms = tuple(RoomConfig(name=n, comfort=20.0, setback=16.0) for n in temps)
     inp = EngineInput(
-        config=EngineConfig(rooms=rooms, easycontrol_low=LOW, easycontrol_high=HIGH),
+        config=EngineConfig(rooms=rooms, boiler_low=LOW, boiler_high=HIGH),
         now=NOW,
         anyone_home=True,
         trv_temps={n: SensorReading(t, NOW) for n, t in temps.items()},
@@ -48,7 +48,7 @@ def test_alert_sentences_are_plain_language():
     assert "battery" in alert_sentence(Alert("low_battery", "Hall"))
     assert "Hall" in alert_sentence(Alert("sensor_stale", "Hall"))
     assert "Hall" in alert_sentence(Alert("target_not_reached", "Hall"))
-    assert "Bosch" in alert_sentence(Alert("bosch_outage"))
+    assert "thermostat" in alert_sentence(Alert("boiler_outage"))
     assert alert_sentence(Alert("weird", None, "raw message")) == "raw message"
     assert alert_sentence(Alert("weird")) == "weird"
 
@@ -78,7 +78,7 @@ def test_boiler_status_call_active_follows_setpoint_being_held():
 
 
 def test_boiler_status_blocked_write_keeps_held_low():
-    held = Commands(easycontrol_setpoint=LOW, easycontrol_changed_at=NOW - timedelta(minutes=1))
+    held = Commands(boiler_setpoint=LOW, boiler_changed_at=NOW - timedelta(minutes=1))
     inp, d = make({"Work room": 18.0}, commands=held, boosts=["Work room"])
     st = boiler_status(inp, d)
     assert (st.call_active, st.held_setpoint) == (False, LOW)
@@ -118,12 +118,28 @@ def test_demand_and_backoff_text():
 
 def test_manual_hold_status_and_text():
     held = Commands(
-        easycontrol_setpoint=LOW,
-        easycontrol_changed_at=NOW - timedelta(hours=1),
-        easycontrol_hold_until=NOW + timedelta(minutes=30),
+        boiler_setpoint=LOW,
+        boiler_changed_at=NOW - timedelta(hours=1),
+        boiler_hold_until=NOW + timedelta(minutes=30),
     )
     st = boiler_status(*make({"Work room": 20.0}, commands=held))
     assert st.hold_until == NOW + timedelta(minutes=30)
     assert hold_text(st.hold_until, NOW) == "Respecting a manual change until 10:30"
     assert hold_text(None, NOW) == "No"
     assert boiler_status(*make({"Work room": 20.0})).hold_until is None
+
+
+def test_room_is_heating_only_while_it_calls_and_the_boiler_call_is_on():
+    from dataclasses import replace
+
+    from custom_components.smart_heating.status import room_heating
+
+    inp, decision = make({"office": 17.0})
+    calling = replace(decision, demand_rooms=("office",), boiler_setpoint=inp.config.boiler_high)
+    assert room_heating("office", inp, calling)
+    # Calling, but the boiler write is still held back (debounce): not heating yet.
+    held_back = replace(calling, boiler_setpoint=inp.config.boiler_low)
+    assert not room_heating("office", inp, held_back)
+    assert room_heating("office", inp, held_back, boiler_configured=False)
+    # Below target but inside the demand band: not calling, so idle.
+    assert not room_heating("office", inp, replace(decision, demand_rooms=()))

@@ -1,3 +1,5 @@
+from datetime import UTC
+
 from custom_components.smart_heating.dashboard import (
     build_dashboard,
     entity_id,
@@ -50,7 +52,7 @@ def test_views_are_overview_heating_boiler_help():
 def test_rooms_view_has_one_section_per_room_with_entities_and_graph():
     rooms_view = view(build_dashboard(ROOMS), "heating")
     assert len(rooms_view["sections"]) == len(ROOMS)
-    for room, section in zip(NAMES, rooms_view["sections"]):
+    for room, section in zip(NAMES, rooms_view["sections"], strict=False):
         ents = set(all_entities(section))
         for ent in (
             entity_id("climate", room),
@@ -137,7 +139,7 @@ def test_overview_keeps_controls():
     ents = set(all_entities(view(build_dashboard(ROOMS), "overview")))
     assert {
         "switch.smart_heating_vacation_mode",
-        "number.smart_heating_vacation_days",
+        "datetime.smart_heating_vacation_return",
         "button.smart_heating_manual_room_override",
     } <= ents
 
@@ -147,7 +149,7 @@ def test_dashboard_has_vacation_manual_override_and_options_link():
     ents = set(all_entities(d))
     assert {
         "switch.smart_heating_vacation_mode",
-        "number.smart_heating_vacation_days",
+        "datetime.smart_heating_vacation_return",
         "button.smart_heating_manual_room_override",
         "button.smart_heating_cancel_manual_room_override",
     } <= ents
@@ -167,15 +169,27 @@ def test_yaml_rendering():
 
 
 def test_help_explains_every_sentence_the_rooms_can_show():
-    from datetime import datetime, timezone
+    from datetime import datetime
     from typing import get_args
 
     from custom_components.smart_heating.engine.models import Reason
     from custom_components.smart_heating.explain import Explanation, summarize
 
     help_text = str(view(build_dashboard(ROOMS), "help"))
-    now = datetime(2026, 1, 12, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 12, 10, 0, tzinfo=UTC)
     for reason in get_args(Reason):
         sentence = summarize(Explanation(reason, 16.0, now, 19.5), now)
         stem = sentence.split("10:00")[0].split("16 degrees")[0].strip(" ,")
         assert stem.split(" until")[0].split(" from")[0] in help_text, sentence
+
+
+def test_room_entities_use_the_room_id_so_a_rename_keeps_the_dashboard_working():
+    dash = build_dashboard([{"name": "Master bedroom", "id": "bed", "trv_entity": "climate.trv"}])
+    text = to_yaml(dash)
+    assert "climate.smart_heating_bed" in text and "smart_heating_master_bedroom" not in text
+
+
+def test_valve_card_uses_the_entities_found_on_the_trv_device():
+    room = {"name": "Bed", "id": "bed", "trv_entity": "climate.trv", "trv_battery": "sensor.trv_power", "trv_valve_position": None, "trv_heating_demand": None}
+    text = to_yaml(build_dashboard([room]))
+    assert "sensor.trv_power" in text and "valve_position" not in text

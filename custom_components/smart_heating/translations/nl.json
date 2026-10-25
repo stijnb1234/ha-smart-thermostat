@@ -18,21 +18,24 @@
           "add_room": "Ruimte toevoegen",
           "edit_room": "Ruimte bewerken",
           "remove_room": "Ruimte verwijderen",
-          "heating_settings": "Boiler- en aanwezigheidsinstellingen",
+          "heating_settings": "Boiler, aanwezigheid en vakantie",
           "report_settings": "Gasrapport-instellingen",
           "save": "Opslaan en sluiten",
           "advanced_settings": "Boileraanvraag en meldingsdrempels"
         }
       },
       "heating_settings": {
-        "title": "Boiler- en aanwezigheidsinstellingen",
-        "description": "EasyControl-klimaatentiteit (de boileraanvraag), personen die als thuis tellen, de lage (geen vraag) en hoge (vraag) EasyControl-instelwaarden, de duur van Boost en handmatige ruimte-override, en het opwarmvenster voor het slapengaan (gebruikt door de slaapkamer-voorinstelling bij het opslaan van een ruimte).",
+        "title": "Boiler, aanwezigheid en vakantie",
+        "description": "De thermostaat die de boiler aanstuurt (Smart Heating verhoogt de instelwaarde om warmte te vragen), de personen die als thuis tellen, hoe op-weg-naar-huis wordt herkend, de vakantieagenda, de lage (geen vraag) en hoge (vraag) instelwaarden van de thermostaat, de duur van Boost en handmatige ruimte-override, en het opwarmvenster voor het slapengaan (gebruikt door de slaapkamer-voorinstelling bij het opslaan van een ruimte).",
         "data": {
-          "easycontrol_entity": "EasyControl-klimaatentiteit",
+          "boiler_entity": "Ketelthermostaat (klimaatentiteit die de boiler laat branden)",
           "persons": "Gevolgde personen",
-          "arrival_entities": "Op-weg-naar-huis-signaal (optioneel; bijv. een zone 'bijna thuis' (actief zolang er iemand in is), of een schakelaar die aan staat. Beëindigt Afwezig/Vakantie eerder zodat het huis warm is als je aankomt)",
-          "easycontrol_low": "EasyControl-instelwaarde zonder vraag",
-          "easycontrol_high": "EasyControl-instelwaarde met vraag",
+          "auto_arrival": "Op weg naar huis herkennen via gps van de telefoons (geen zone nodig)",
+          "arrival_entities": "Extra op-weg-naar-huis-signalen (optioneel; bijv. een schakelaar die aan staat, of een zone met iemand erin)",
+          "vacation_calendar": "Vakantieagenda (optioneel; passende afspraken zetten Vakantie automatisch aan)",
+          "vacation_keywords": "Vakantiewoorden in titel of omschrijving van de afspraak (komma-gescheiden; * = elke afspraak)",
+          "boiler_low": "Instelwaarde ketelthermostaat zonder vraag",
+          "boiler_high": "Instelwaarde ketelthermostaat met vraag",
           "boost_minutes": "Duur van Boost",
           "manual_override_minutes": "Duur van handmatige ruimte-override",
           "pre_bed_start": "Start opwarmen slaapkamer voor het slapengaan",
@@ -67,6 +70,7 @@
           "schedule_text": "Comfortschema (gaat boven de voorinstelling)",
           "trv_offset": "Correctie kraansensor (0 = laat het systeem leren)",
           "lead_time_minutes": "Voorverwarmtijd (tot het geleerd is)",
+          "compensate_trv": "Instelwaarde van de kraan corrigeren met de kamersensor (alleen voor kranen die geen externe temperatuur aannemen)",
           "window_detection": "Open-raamdetectie",
           "window_drop": "Open-raamdaling (maximum; per ruimte lager geleerd)",
           "window_pause_minutes": "Pauze bij open raam (15-30 min)"
@@ -97,6 +101,7 @@
           "schedule_text": "Comfortschema (gaat boven de voorinstelling)",
           "trv_offset": "Correctie kraansensor (0 = laat het systeem leren)",
           "lead_time_minutes": "Voorverwarmtijd (tot het geleerd is)",
+          "compensate_trv": "Instelwaarde van de kraan corrigeren met de kamersensor (alleen voor kranen die geen externe temperatuur aannemen)",
           "window_detection": "Open-raamdetectie",
           "window_drop": "Open-raamdaling (maximum; per ruimte lager geleerd)",
           "window_pause_minutes": "Pauze bij open raam (15-30 min)"
@@ -110,20 +115,23 @@
       },
       "advanced_settings": {
         "title": "Boileraanvraag en meldingsdrempels",
-        "description": "Vertraging en pauze bij EasyControl-schrijfacties (limiet van de Bosch-cloud), hysterese van de warmtevraag en meldingsdrempels.",
+        "description": "Vertraging en pauze bij schrijfacties naar de ketelthermostaat (cloudlimieten), hysterese van de warmtevraag, meldingsdrempels en het Zigbee2MQTT-basistopic. Meldingen kunnen ook naar je telefoon: ze gaan pas weg als ze de wachttijd duren, met een bericht als ze zijn opgelost.",
         "data": {
-          "debounce_minutes": "Wachttijd na een EasyControl-wijziging",
+          "debounce_minutes": "Wachttijd na een wijziging van de ketelthermostaat",
           "backoff_base_minutes": "Eerste pauze na een mislukte schrijfactie",
           "backoff_max_minutes": "Maximale pauze",
           "demand_hysteresis": "Hysterese van de vraag (ruimte moet zoveel onder het doel zitten)",
           "trv_settle_minutes": "Radiatorkraan: zo lang wachten na een schrijfactie voor controle",
-          "easycontrol_settle_minutes": "EasyControl: zo lang wachten na een schrijfactie voordat een verschil als handmatige wijziging telt",
-          "easycontrol_manual_hold_minutes": "EasyControl: een handmatige wijziging respecteren gedurende",
+          "boiler_settle_minutes": "Ketelthermostaat: zo lang wachten na een schrijfactie voordat een verschil als handmatige wijziging telt",
+          "boiler_manual_hold_minutes": "Ketelthermostaat: een handmatige wijziging respecteren gedurende",
           "trv_offline_minutes": "Kraan offline na",
           "target_window_hours": "Doel niet bereikt na",
-          "outage_after_failures": "Bosch-storing na mislukte schrijfacties",
+          "outage_after_failures": "Storing ketelthermostaat na mislukte schrijfacties",
           "sensor_stale_hours": "Externe sensor verouderd na",
-          "battery_low_percent": "Batterij laag onder"
+          "battery_low_percent": "Batterij laag onder",
+          "notify_targets": "Meldingen ook sturen naar (meldingsdiensten, bijv. de app op je telefoon)",
+          "notify_delay_minutes": "Daarheen pas sturen als een melding al zo lang duurt",
+          "z2m_base_topic": "Zigbee2MQTT-basistopic (voor kranen die de kamertemperatuur via MQTT krijgen)"
         }
       }
     },
@@ -139,6 +147,51 @@
         "working_room": "Werkkamer (ma/wo/vr 08:00-17:00)",
         "bedroom": "Slaapkamer (werktijden plus opwarmen voor het slapengaan)"
       }
+    }
+  },
+  "services": {
+    "boost": {
+      "name": "Ruimte boosten",
+      "description": "Verwarm een ruimte nu een tijdje naar de comforttemperatuur.",
+      "fields": {
+        "duration": {
+          "name": "Duur",
+          "description": "Hoe lang (standaard: de ingestelde Boost-duur)."
+        }
+      }
+    },
+    "cancel_boost": {
+      "name": "Boost stoppen",
+      "description": "Stop een lopende Boost; de ruimte volgt weer het schema."
+    },
+    "set_vacation": {
+      "name": "Vakantie instellen",
+      "description": "Houd het huis op vorstbescherming vanaf de start tot je terug bent. Elke ruimte begint op tijd op te warmen voor je terugkomst.",
+      "fields": {
+        "start": {
+          "name": "Start",
+          "description": "Wanneer je vertrekt (standaard: nu)."
+        },
+        "end": {
+          "name": "Terug",
+          "description": "Wanneer je weer thuis bent."
+        }
+      }
+    },
+    "cancel_vacation": {
+      "name": "Vakantie stoppen",
+      "description": "Beëindig een handmatige vakantie (agendavakanties volgen de agenda)."
+    }
+  },
+  "exceptions": {
+    "return_in_past": {
+      "message": "Het moment van terugkomst moet in de toekomst liggen."
+    },
+    "return_before_start": {
+      "message": "Het moment van terugkomst moet na de start van de vakantie liggen."
+    },
+    "not_loaded": {
+      "message": "Smart Heating is niet ingesteld."
     }
   }
 }

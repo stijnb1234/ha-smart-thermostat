@@ -1,5 +1,4 @@
-from datetime import timedelta
-from datetime import time
+from datetime import time, timedelta
 
 from custom_components.smart_heating.engine import (
     Commands,
@@ -20,7 +19,7 @@ class Home:
     def __init__(self, clock, **room_kwargs):
         self.clock = clock
         room = RoomConfig(name="bedroom", schedule=ALWAYS, **room_kwargs)
-        self.config = EngineConfig(rooms=(room,), easycontrol_low=10.0, easycontrol_high=22.0)
+        self.config = EngineConfig(rooms=(room,), boiler_low=10.0, boiler_high=22.0)
         self.history: list[SensorReading] = []
         self.commands = Commands()
         self.decision = None

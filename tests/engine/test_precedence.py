@@ -21,7 +21,7 @@ def test_boost_beats_window_pause_beats_vacation_and_away_beats_schedule(clock):
         RoomConfig(name=n, comfort=20.0, setback=16.0, frost_hold=12.0, schedule=ALWAYS)
         for n in ("boosted", "falling", "steady")
     )
-    config = EngineConfig(rooms=rooms, easycontrol_low=10.0, easycontrol_high=22.0)
+    config = EngineConfig(rooms=rooms, boiler_low=10.0, boiler_high=22.0)
 
     def history(drop):
         start = 19.0
@@ -69,7 +69,13 @@ def test_floor_preheat_keeps_idle_radiators_shut_and_calls_boiler(clock):
     from datetime import time
 
     from custom_components.smart_heating.engine import (
-        Commands, EngineConfig, EngineInput, RoomConfig, ScheduleWindow, SensorReading, decide,
+        Commands,
+        EngineConfig,
+        EngineInput,
+        RoomConfig,
+        ScheduleWindow,
+        SensorReading,
+        decide,
     )
 
     clock.advance(hours=4)  # 07:00, two hours before the 09:00 window
@@ -79,7 +85,7 @@ def test_floor_preheat_keeps_idle_radiators_shut_and_calls_boiler(clock):
     )
     other = RoomConfig(name="hall")  # no schedule: setback
     inp = EngineInput(
-        config=EngineConfig(rooms=(floor, other), easycontrol_low=10.0, easycontrol_high=22.0),
+        config=EngineConfig(rooms=(floor, other), boiler_low=10.0, boiler_high=22.0),
         now=clock.now(), anyone_home=True, learned={}, last_commands=Commands(),
         external_temps={"bath": SensorReading(17.0, clock.now())},
         trv_temps={"hall": SensorReading(15.5, clock.now())},
@@ -96,7 +102,13 @@ def _open_radiator_home(clock, living_temp):
     from datetime import time
 
     from custom_components.smart_heating.engine import (
-        Commands, EngineConfig, EngineInput, RoomConfig, ScheduleWindow, SensorReading, decide,
+        Commands,
+        EngineConfig,
+        EngineInput,
+        RoomConfig,
+        ScheduleWindow,
+        SensorReading,
+        decide,
     )
 
     clock.advance(hours=9)  # 12:00, inside both windows
@@ -105,7 +117,7 @@ def _open_radiator_home(clock, living_temp):
     bedroom = RoomConfig(name="bedroom", schedule=window)
     return decide(
         EngineInput(
-            config=EngineConfig(rooms=(living, bedroom), easycontrol_low=10.0, easycontrol_high=22.0),
+            config=EngineConfig(rooms=(living, bedroom), boiler_low=10.0, boiler_high=22.0),
             now=clock.now(), anyone_home=True, learned={}, last_commands=Commands(),
             external_temps={"living": SensorReading(living_temp, clock.now())},
             trv_temps={"bedroom": SensorReading(17.0, clock.now())},
@@ -115,10 +127,47 @@ def _open_radiator_home(clock, living_temp):
 
 def test_open_radiator_room_at_comfort_stops_the_boiler_call_of_other_rooms(clock):
     d = _open_radiator_home(clock, living_temp=19.6)
-    assert d.demand_rooms == () and d.easycontrol_setpoint == 10.0
+    assert d.demand_rooms == () and d.boiler_setpoint == 10.0
     assert d.external_temp_pushes == {}  # no TRV to push to
 
 
 def test_open_radiator_room_below_comfort_lets_the_boiler_call_through(clock):
     d = _open_radiator_home(clock, living_temp=18.0)
-    assert set(d.demand_rooms) == {"living", "bedroom"} and d.easycontrol_setpoint == 22.0
+    assert set(d.demand_rooms) == {"living", "bedroom"} and d.boiler_setpoint == 22.0
+
+
+def _open_radiator_cycle(clock, living_temp, capping=frozenset()):
+    from datetime import time
+
+    window = (ScheduleWindow(frozenset(range(7)), time(6), time(23)),)
+    living = RoomConfig(name="living", open_radiators=True, schedule=window)
+    bedroom = RoomConfig(name="bedroom", schedule=window)
+    return decide(
+        EngineInput(
+            config=EngineConfig(rooms=(living, bedroom), boiler_low=10.0, boiler_high=22.0),
+            now=clock.now(), anyone_home=True, learned={},
+            last_commands=Commands(open_radiators_capping=capping),
+            external_temps={"living": SensorReading(living_temp, clock.now())},
+            trv_temps={"bedroom": SensorReading(17.0, clock.now())},
+        )
+    )
+
+
+def test_open_radiator_cap_holds_until_the_room_cools_past_the_hysteresis(clock):
+    clock.advance(hours=9)
+    capped = _open_radiator_cycle(clock, 19.5)
+    assert capped.open_radiators_capping == frozenset({"living"}) and capped.demand_rooms == ()
+
+    # Just below comfort: still capped (no flapping around the comfort edge).
+    still = _open_radiator_cycle(clock, 19.4, capped.open_radiators_capping)
+    assert still.demand_rooms == () and still.open_radiators_capping == frozenset({"living"})
+
+    # Cooled past the hysteresis (0.3 K): the cap lifts and heating resumes.
+    lifted = _open_radiator_cycle(clock, 19.1, still.open_radiators_capping)
+    assert lifted.open_radiators_capping == frozenset() and "bedroom" in lifted.demand_rooms
+
+
+def test_open_radiator_room_rising_towards_comfort_does_not_cap_early(clock):
+    clock.advance(hours=9)
+    d = _open_radiator_cycle(clock, 19.4)
+    assert d.open_radiators_capping == frozenset() and "bedroom" in d.demand_rooms

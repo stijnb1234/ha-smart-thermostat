@@ -8,4 +8,4 @@ from .vacation import VacationSwitch
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     shared = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([VacationSwitch(shared["vacation"], shared["lang"])])
+    async_add_entities([VacationSwitch(shared["vacation"], entry.entry_id, shared["lang"])])

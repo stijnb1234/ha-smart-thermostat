@@ -6,14 +6,15 @@ are expected to be in the user's local timezone. No Home Assistant imports.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Mapping
 
 from .engine import Alert, Decision, EngineConfig, EngineInput
 from .engine.boiler import backoff_delay
 from .engine.overrides import manual_override_active
 from .i18n import DEFAULT_LANGUAGE, tr, weekday
+
 
 @dataclass(frozen=True)
 class BoilerStatus:
@@ -24,23 +25,23 @@ class BoilerStatus:
     last_write_at: datetime | None
     last_write_result: str  # ok / rate_limited / error / none
     backoff_until: datetime | None
-    hold_until: datetime | None = None  # a manual EasyControl change is being respected until
+    hold_until: datetime | None = None  # a manual change on the boiler thermostat is being respected until
 
 
 def boiler_status(inp: EngineInput, decision: Decision) -> BoilerStatus:
     # The adapter writes the decision's setpoint this cycle, so that is what we hold.
-    held = decision.easycontrol_setpoint
+    held = decision.boiler_setpoint
     if held is None:
-        held = inp.last_commands.easycontrol_setpoint
+        held = inp.last_commands.boiler_setpoint
     cfg = inp.config
-    call = held is not None and cfg.easycontrol_high != cfg.easycontrol_low and held == cfg.easycontrol_high
+    call = held is not None and cfg.boiler_high != cfg.boiler_low and held == cfg.boiler_high
     result = inp.last_write
     backoff_until = None
     if result is not None and result.status != "ok":
         until = result.at + backoff_delay(cfg, result)
         if until > inp.now:
             backoff_until = until
-    hold_until = decision.easycontrol_hold_until
+    hold_until = decision.boiler_hold_until
     if hold_until is not None and hold_until <= inp.now:
         hold_until = None
     return BoilerStatus(
@@ -53,6 +54,15 @@ def boiler_status(inp: EngineInput, decision: Decision) -> BoilerStatus:
         backoff_until=backoff_until,
         hold_until=hold_until,
     )
+
+
+def room_heating(room: str, inp: EngineInput, decision: Decision, boiler_configured: bool = True) -> bool:
+    """A Room is heating while it calls the boiler and the boiler call is on (hysteresis and
+    debounce included, so this does not flicker around the target). Without a boiler
+    thermostat the call itself is not tracked: calling is enough."""
+    if room not in decision.demand_rooms:
+        return False
+    return not boiler_configured or boiler_status(inp, decision).call_active
 
 
 def demand_text(status: BoilerStatus, lang: str = DEFAULT_LANGUAGE) -> str:
@@ -122,7 +132,7 @@ def alert_sentence(alert: Alert, lang: str = DEFAULT_LANGUAGE) -> str:
 _ALERT_KEYS = {
     f"alert.{c}"
     for c in (
-        "bosch_outage", "trv_offline", "trv_off", "trv_write_failed",
+        "boiler_outage", "trv_offline", "trv_off", "trv_write_failed",
         "low_battery", "sensor_stale", "target_not_reached", "not_warming",
     )
 }

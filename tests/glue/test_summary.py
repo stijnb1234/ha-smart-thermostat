@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from custom_components.smart_heating.explain import Explanation, summarize
 
-UTC = timezone.utc
+UTC = UTC
 NOW = datetime(2026, 1, 12, 10, 0, tzinfo=UTC)
 LATER = datetime(2026, 1, 12, 14, 30, tzinfo=UTC)
 TOMORROW = datetime(2026, 1, 13, 8, 0, tzinfo=UTC)  # a Tuesday

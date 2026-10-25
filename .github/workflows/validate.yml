@@ -19,12 +19,24 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: home-assistant/actions/hassfest@master
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements-test.txt
+      - run: ruff check .
+      - run: mypy
   tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
+          cache: pip
       - run: pip install -r requirements-test.txt
       - run: pytest -q

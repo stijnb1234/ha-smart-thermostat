@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from .engine import Decision, EngineInput, RoomConfig, lead_time_for, wants_comfort
+from .engine import Decision, EngineInput, RoomConfig, lead_time_for, vacation_release, wants_comfort
 from .engine.models import Reason
 from .i18n import DEFAULT_LANGUAGE, number, tr, weekday
 
@@ -55,7 +55,7 @@ def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanati
     elif reason == "window":
         end = decision.window_paused_until[room.name]
     elif reason == "vacation":
-        end = inp.vacation_until
+        end = vacation_release(room, inp)
     elif reason in ("away", "occupant_away", "floor_first"):
         return Explanation(reason, target)
     else:

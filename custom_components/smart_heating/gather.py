@@ -26,25 +26,6 @@ def update_history(
     return tuple(r for r in (*history, reading) if now - r.at <= keep)
 
 
-def z2m_name(trv_entity: str) -> str:
-    """Z2M friendly name, assumed to equal the climate entity's object id."""
-    return trv_entity.split(".", 1)[-1]
-
-
-def battery_entity(trv_entity: str) -> str:
-    """Z2M exposes the battery percentage as sensor.<name>_battery."""
-    return f"sensor.{z2m_name(trv_entity)}_battery"
-
-
 def battery_is_low(state: object, threshold_percent: float) -> bool:
     value = parse_number(state)
     return value is not None and value < threshold_percent
-
-
-def valve_position_entity(trv_entity: str) -> str:
-    return f"number.{z2m_name(trv_entity)}_valve_position"
-
-
-def heating_demand_entity(trv_entity: str) -> str:
-    """Z2M exposes the TRV's own PI heating demand (percent) as sensor.<name>_pi_heating_demand."""
-    return f"sensor.{z2m_name(trv_entity)}_pi_heating_demand"

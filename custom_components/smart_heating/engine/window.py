@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Sequence
 
 from .models import EPSILON, EngineInput, RoomConfig, SensorReading
 
@@ -27,8 +27,16 @@ def drop_threshold(room: RoomConfig, inp: EngineInput) -> float:
     return min(room.window_drop, inp.window_thresholds.get(room.name, room.window_drop))
 
 
+def window_history(room: RoomConfig, inp: EngineInput) -> Sequence[SensorReading]:
+    """Readings to judge a fast fall by: the TRV-first history, but only the external sensor
+    while the radiator cools down (none when the Room has no external sensor)."""
+    if room.name in inp.cooling_rooms:
+        return inp.external_history.get(room.name, ())
+    return inp.temp_history.get(room.name, ())
+
+
 def _fast_fall(room: RoomConfig, inp: EngineInput) -> bool:
-    drop = recent_drop(inp.temp_history.get(room.name, ()), inp.now, room.window_period)
+    drop = recent_drop(window_history(room, inp), inp.now, room.window_period)
     return drop is not None and drop >= drop_threshold(room, inp) - EPSILON
 
 
