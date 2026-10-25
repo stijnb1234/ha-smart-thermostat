@@ -54,9 +54,9 @@ Dit blok verschijnt alleen als er iets aandacht nodig heeft, bijvoorbeeld een bi
 
 Hier staan de knoppen:
 
-- **Vakantiemodus** (een aan/uit-schakelaar) en **Vakantiedagen** (een schuifje): voor als je een paar dagen weg bent.
+- **Terug van vakantie** (een datum en tijd) en **Vakantiemodus** (een aan/uit-schakelaar): voor als je een paar dagen weg bent.
 - **Handmatige ruimte-override** en **Handmatige ruimte-override annuleren**: voor kamers zonder slimme kraan.
-- In een apart blok **Boost**: voor elke kamer een knop **Boost** en een knop **Boost annuleren**, bijvoorbeeld *Studeerkamer: Boost*.
+- In een apart blok **Boost**: voor elke kamer een knop **Boost** en een knop **Boost annuleren**, bijvoorbeeld *Slaapkamer: Boost*.
 - Onderaan een link naar de Smart Heating-opties (schema’s en temperaturen per kamer). Die is bedoeld voor de beheerder.
 
 Hoe je de knoppen gebruikt, staat bij [De knoppen](#de-knoppen) verderop.
@@ -78,7 +78,7 @@ In de kolom *Wat gebeurt er* staat per kamer één zin. De tijden en temperature
 | Persoon van deze ruimte is weg, op 16 graden gehouden | Deze kamer hoort bij iemand die nu weg is, dus het schema wordt overgeslagen. De kamer warmt weer op als die persoon thuis of onderweg is. |
 | Wacht tot de vloerverwarming is opgewarmd, op 12 graden gehouden | De vloerverwarming warmt eerst op. Kamers die nu niet gebruikt worden, houden hun radiator zolang dicht. |
 | Handmatig ingesteld op 22 graden, tot 17:00 | Iemand heeft de kraan zelf verdraaid. Die stand blijft tot 17:00, daarna neemt het schema het weer over. |
-| Vakantie tot za 00:00, op 12 graden gehouden | De vakantiemodus staat aan. Het huis wordt net boven het vriespunt gehouden en warmt op tijd weer op. |
+| Vakantie tot za 16:20, op 12 graden gehouden | De vakantiemodus staat aan. De kamer blijft net boven het vriespunt tot die tijd en warmt dan op, zodat het aangenaam is als je terug bent. |
 
 ## Wanneer wordt een kamer warm?
 
@@ -92,9 +92,9 @@ Elke kamer kent drie temperaturen. De beheerder kan ze per kamer aanpassen; dit 
 
 ### Het schema
 
-In het schema staat wanneer een kamer warm moet zijn. Standaard is dat:
+In het schema staat wanneer een kamer warm moet zijn. De beheerder kiest er per kamer een, bijvoorbeeld:
 
-- **Woonkamer:** elke dag van 06:00 tot 23:00.
+- **Woonruimte:** elke dag van 06:00 tot 23:00.
 - **Werkkamer:** maandag, woensdag en vrijdag van 08:00 tot 17:00.
 - **Slaapkamer:** tijdens de werkuren, plus even opwarmen voor het slapengaan (21:30 tot 22:30).
 
@@ -102,7 +102,7 @@ Het schema aanpassen doet de beheerder in de instellingen.
 
 ### Op tijd warm
 
-Een kamer begint al voor de geplande tijd met opwarmen, zodat hij op tijd warm is. In het begin is dat ruim een uur van tevoren. Daarna leert het systeem per kamer hoe lang opwarmen echt duurt, ook afhankelijk van hoe koud het buiten is. Je ziet dan *Opwarmen* bij de kamer staan. Meer daarover bij [Het systeem leert](#het-systeem-leert).
+Een kamer begint al voor de geplande tijd met opwarmen, zodat hij op tijd warm is. Hoe vroeg hangt af van hoe koud de kamer nu is: een kamer die flink is afgekoeld (na een weekend weg bijvoorbeeld) begint eerder dan een kamer die nog redelijk warm is. In het begin schat het systeem dat; daarna leert het per kamer hoe snel opwarmen echt gaat, ook afhankelijk van hoe koud het buiten is. Is het opwarmen eenmaal begonnen, dan gaat het door tot het schema begint. Je ziet dan *Opwarmen* bij de kamer staan. Meer daarover bij [Het systeem leert](#het-systeem-leert).
 
 ### Wie wint er?
 
@@ -119,10 +119,10 @@ Soms gelden er meerdere dingen tegelijk. Dan wint de bovenste uit dit rijtje:
 
 Deze dingen gebeuren automatisch. Je hoeft er niets voor te doen.
 
-- **Raam open:** koelt een kamer ineens sneller af dan hij normaal doet, dan gaat het systeem ervan uit dat er een raam open staat. De verwarming in die kamer pauzeert dan een kwartier tot een half uur, zodat je niet de straat verwarmt. Het systeem kijkt hiervoor naar de thermometer in de radiatorkraan, want die zit meestal dicht bij het raam en merkt tocht als eerste. Wat ‘ineens’ is, leert het systeem per kamer, zie [Het systeem leert](#het-systeem-leert).
-- **Niemand thuis:** is iedereen de deur uit, dan gaan alle kamers naar de lagere temperatuur (16 °C). Ben je langer dan twee dagen weg, dan zakt het huis naar vorstbeveiliging (12 °C).
+- **Raam open:** koelt een kamer ineens sneller af dan hij normaal doet, dan gaat het systeem ervan uit dat er een raam open staat. De verwarming in die kamer pauzeert dan een kwartier tot een half uur, zodat je niet de straat verwarmt. Het systeem kijkt hiervoor naar de thermometer in de radiatorkraan, want die zit meestal dicht bij het raam en merkt tocht als eerste. Vlak na het verwarmen koelt de radiator zelf nog af en daalt die thermometer mee; dat uur telt alleen de thermometer van de kamer zelf, zodat dit niet voor een open raam wordt aangezien. Wat ‘ineens’ is, leert het systeem per kamer, zie [Het systeem leert](#het-systeem-leert).
+- **Niemand thuis:** is iedereen de deur uit, dan gaan alle kamers naar de lagere temperatuur (16 °C). Ben je langer dan twee dagen weg, dan zakt het huis naar vorstbeveiliging (12 °C). Die twee dagen tellen vanaf het moment dat de laatste persoon vertrok.
 - **Kamer van iemand die weg is:** een kamer kan bij bepaalde personen horen, bijvoorbeeld een werkkamer. Zijn die allemaal weg, dan blijft die kamer op de lagere temperatuur, ook als het schema iets anders zegt. Een Boost werkt wel gewoon.
-- **Onderweg naar huis:** als de beheerder dit heeft ingesteld, merkt het systeem dat je onderweg bent, bijvoorbeeld als je in de buurt van huis komt. Het huis begint dan alvast op te warmen, zodat het warm is als je binnenkomt.
+- **Onderweg naar huis:** staat de Home Assistant-app met locatie op je telefoon, dan ziet het systeem dat je dichterbij komt en schat het wanneer je thuis bent. Op tijd om op te warmen begint het huis te verwarmen, zodat het warm is als je binnenkomt. Niets in te stellen, geen zones.
 - **Vloerverwarming:** vloerverwarming is traag. Een kamer met vloerverwarming begint daarom al een paar uur voor de geplande tijd. Zolang die opwarmt, blijven de radiatoren in kamers die niet gebruikt worden dicht, zodat de warmte naar de vloer gaat.
 - **Kamers zonder slimme kranen:** die vragen om warmte als het er koud is en zetten de ketel uit zodra het warm genoeg is. Zie [Kamers zonder slimme kranen](#kamers-zonder-slimme-kranen).
 - **Een kamer die niet warmer wordt:** vraagt een kamer al driekwartier om warmte en is hij nauwelijks warmer geworden, dan krijg je een melding. Zie [Meldingen](#meldingen-1).
@@ -131,26 +131,26 @@ Deze dingen gebeuren automatisch. Je hoeft er niets voor te doen.
 
 ## Kamers zonder slimme kranen
 
-Niet elke kamer heeft al een slimme kraan. Stel dat je nog wacht op de kranen in de woonruimte. De radiatoren daar staan de hele tijd open (of je draait ze met de hand), dus Smart Heating kan ze niet dichtdoen.
+Misschien heeft nog niet elke kamer een slimme kraan. De radiatoren daar staan de hele tijd open (of je draait ze met de hand), dus Smart Heating kan ze niet dichtdoen.
 
-Dat geeft een probleem. De ketel wordt aangezet via de Bosch EasyControl, en die thermostaat hangt in de woonkamer. Vraagt een andere kamer, bijvoorbeeld de slaapkamer, om warmte, dan blijft de ketel branden tot ook de woonkamer warm is. Staan alle radiatoren open, dan wordt de woonkamer veel warmer dan je wilde, tot wel 22 graden.
+Dat geeft een probleem. Vraagt een andere kamer, bijvoorbeeld de slaapkamer, om warmte, dan slaat de ketel aan en worden die open radiatoren ook warm. Die kamer wordt dan veel warmer dan je wilde.
 
 De beheerder lost dit op door die kamers toe te voegen als kamer met **open radiatoren**. Zo’n kamer heeft een temperatuursensor nodig en volgt zijn schema zoals elke andere kamer. Voor de ketel werkt het zo:
 
 - **Hij vraagt om warmte als het koud is.** Is de kamer meer dan 0,3 graden onder zijn comforttemperatuur, dan wordt de ketel gevraagd te branden.
-- **Hij zet de ketel uit als het warm genoeg is.** Zodra de kamer zijn comforttemperatuur haalt, gaat de ketel uit. Dat geldt voor alle kamers: ook als de slaapkamer nog koud is, wacht de ketel tot de woonruimte weer iets is afgekoeld. Zo wordt het huis nooit warmer dan die kamer mag worden.
+- **Hij zet de ketel uit als het warm genoeg is.** Zodra de kamer zijn comforttemperatuur haalt, gaat de ketel uit. Dat geldt voor alle kamers: ook als de slaapkamer nog koud is, wacht de ketel tot die kamer weer iets is afgekoeld (0,3 graden). Zo wordt het huis nooit warmer dan die kamer mag worden.
 
 Goed om te weten:
 
-- **Eén sensor, één kamer.** Heb je maar één thermometer voor de hele woonruimte, voeg die dan toe als één kamer (bijvoorbeeld *Woonruimte*) in plaats van drie kamers op dezelfde thermometer. Dat werkt even goed en is makkelijker bij te houden.
-- **Een koude slaapkamer moet soms wachten.** Zolang de woonruimte warm is, blijft de ketel uit, ook als een andere kamer wat te koud is. Dat is de prijs van de open radiatoren. Twee manieren eromheen: draai een radiator met de hand dicht, of gebruik de **Handmatige ruimte-override**, die de ketel altijd aanzet.
-- **Zijn de kranen er eenmaal,** dan zet de beheerder *open radiatoren* uit, voegt hij de woonkamers toe als gewone kamers met hun kranen, en haalt hij de gecombineerde kamer weg. De begrenzing verdwijnt dan vanzelf, omdat elke kraan zijn eigen radiator dichtdraait.
+- **Eén sensor, één kamer.** Dekt één thermometer meerdere verbonden kamers, voeg ze dan toe als één kamer in plaats van meerdere kamers op dezelfde thermometer. Dat werkt even goed en is makkelijker bij te houden.
+- **Een koude kamer moet soms wachten.** Zolang de kamer met open radiatoren warm is, blijft de ketel uit, ook als een andere kamer wat te koud is. Dat is de prijs van de open radiatoren. Twee manieren eromheen: draai een radiator met de hand dicht, of gebruik de **Handmatige ruimte-override**, die de ketel altijd aanzet.
+- **Zijn de kranen er eenmaal,** dan zet de beheerder *open radiatoren* uit, voegt hij de kamers toe als gewone kamers met hun kranen, en haalt hij de gecombineerde kamer weg als die er was. De begrenzing verdwijnt dan vanzelf, omdat elke kraan zijn eigen radiator dichtdraait.
 
 ## Het systeem leert
 
 Smart Heating begint met verstandige standaardwaarden en leert daarna elke kamer kennen. Dat gebeurt per kamer, het blijft bewaard na een herstart, en zolang er nog te weinig gegevens zijn, gelden gewoon de standaardwaarden. Je hoeft er niets voor te doen.
 
-- **Hoe lang opwarmen duurt.** Het systeem onthoudt hoe snel een kamer opwarmt en hoe koud het toen buiten was. Zo weet het hoe vroeg het moet beginnen voordat het schema start (zie [Op tijd warm](#op-tijd-warm)).
+- **Hoe snel opwarmen gaat.** Het systeem onthoudt hoe snel een kamer opwarmt en hoe koud het toen buiten was. Samen met hoe koud de kamer nu is, weet het zo hoe vroeg het moet beginnen voordat het schema start (zie [Op tijd warm](#op-tijd-warm)).
 - **Wat een open raam is.** Elke kamer koelt een beetje anders af: een kamer met een groot raam daalt sneller dan een kleine slaapkamer. Na ongeveer drie uur rustige metingen weet het systeem wat voor een kamer normaal is en wat niet. Een kamer die normaal nauwelijks verandert, herkent een open raam sneller. De instelling van de beheerder voor de temperatuurdaling is het maximum: het systeem kan de kamer alerter maken dan dat, nooit minder alert.
 - **Hoever een kamer blijft opwarmen.** Een radiator blijft nog even warm nadat de ketel stopt. Het systeem meet hoeveel verder de kamer opwarmt, en zet de ketel zoveel eerder uit. Zo komt de kamer precies op zijn doel tot rust in plaats van er iets boven, wat gas bespaart. Dit leert het na minstens drie keer verwarmen, en de correctie is nooit meer dan één graad.
 - **Hoe de thermometers verschillen.** De thermometer in een radiatorkraan meet een andere waarde dan de losse thermometer midden in de kamer. Het systeem vergelijkt de twee zolang de radiator uit staat. Wordt de losse thermometer ooit stil, dan gebruikt het de waarde van de kraan, gecorrigeerd met dat verschil, in plaats van er een stukje naast te zitten. Heeft de beheerder zelf een correctie ingesteld, dan geldt die.
@@ -170,10 +170,12 @@ Wil je eerder stoppen, druk dan op **Boost annuleren**. Bij de kamer zie je zola
 
 Ga je een paar dagen weg? Zo zet je het huis op vorstbeveiliging:
 
-1. Zet bij **Vakantiedagen** het schuifje op het aantal dagen dat je weg bent (1 tot 60, standaard 7). Tel het aantal nachten: vertrek je zaterdag en kom je volgende zaterdag terug, kies dan 7.
+1. Zet **Terug van vakantie** op de dag en tijd dat je thuis verwacht te zijn.
 2. Zet **Vakantiemodus** aan.
 
-Alle kamers gaan dan naar 12 °C. Op de dag dat je terugkomt, gaat het huis vanaf middernacht weer zijn gewone schema volgen. Zo is het warm als je thuiskomt. Ben je eerder terug, zet de vakantiemodus dan gewoon uit. Is ‘onderweg naar huis’ ingesteld, dan stopt de vakantie ook vanzelf als je eraan komt.
+Alle kamers gaan dan naar 12 °C. Elke kamer begint precies op tijd op te warmen, zodat het aangenaam is als je terug bent. Ben je eerder terug, zet de vakantiemodus dan gewoon uit; het huis merkt ook zelf als je onderweg naar huis bent.
+
+Heeft de beheerder een vakantieagenda gekoppeld, dan heb je de knoppen niet eens nodig: zet een afspraak zoals *Vakantie* in die agenda, met de tijd dat je vertrekt en de tijd dat je terug bent, en de vakantiemodus volgt die vanzelf.
 
 ### Handmatige ruimte-override: voor kamers zonder slimme kraan
 
@@ -197,14 +199,14 @@ Een melding verschijnt alleen als er echt iets aandacht nodig heeft. Hij verdwij
 | De temperatuursensor in de kamer meldt niets meer. | De losse thermometer in die kamer is stil. Kijk of de batterij leeg is. Tot die tijd gebruikt het systeem de thermometer in de radiatorkraan. |
 | De kamer vraagt steeds om warmte maar wordt niet warmer. | Mogelijk staat een raam open of werkt de radiator niet. Controleer beide. |
 | De kamer is al lange tijd te koud en haalt zijn doel niet. | Kijk of er een raam of deur openstaat en of de radiator warm wordt. Blijft het zo, laat het de beheerder weten. |
-| De Bosch-cloud is onbereikbaar. | De ketel kan even niet betrouwbaar worden aangestuurd. De radiatorkranen volgen gewoon het schema. Meestal lost dit zichzelf op. |
+| De ketelthermostaat is onbereikbaar. | De ketel kan even niet betrouwbaar worden aangestuurd. De radiatorkranen volgen gewoon het schema. Meestal lost dit zichzelf op. |
 
 ## Zelf iets verstellen
 
 Je mag gewoon aan de knoppen in huis draaien. Smart Heating houdt daar rekening mee.
 
 - **Aan een slimme radiatorkraan draaien:** de stand die je kiest, blijft staan tot het schema van die kamer de volgende keer verandert. Daarna neemt het systeem het weer over. Zet je de kraan hoger dan de lagere temperatuur en is de kamer kouder dan wat je instelde, dan slaat de ketel ook aan. Bij de kamer staat zolang *Handmatig ingesteld op …*.
-- **Aan de EasyControl draaien** (de thermostaat van Bosch aan de muur): je instelling wordt ongeveer twee uur gerespecteerd. Daarna gaat Smart Heating weer verder.
+- **Aan de ketelthermostaat draaien** (de thermostaat die de ketel aanzet): je instelling wordt ongeveer twee uur gerespecteerd. Daarna gaat Smart Heating weer verder.
 - **In Home Assistant de temperatuur van een kamer veranderen:** dat kan niet. Je krijgt dan de melding dat het doel door Smart Heating wordt bepaald. Gebruik in plaats daarvan **Boost**, of vraag de beheerder het schema of de temperaturen aan te passen.
 
 ## Veelgestelde vragen
@@ -231,4 +233,4 @@ Nee. Het leert hoe je huis zich gedraagt en kan in het maandagrapport een schema
 De eerste dingen, zoals een open raam, werken na een paar uur. Op tijd opwarmen en de ketel op tijd uitzetten worden beter in de eerste weken. Tot die tijd gelden de standaardwaarden, dus je zit er niet slechter mee.
 
 **Moet ik de vakantiemodus na mijn vakantie zelf uitzetten?**
-Nee. Op de dag dat je terugkomt, volgt het huis weer het gewone schema, en de knop gaat uit zodra er iemand thuis is.
+Nee. Het huis warmt op tijd op voor het terugkeermoment dat je instelde, en de knop gaat uit zodra er iemand thuis is.
