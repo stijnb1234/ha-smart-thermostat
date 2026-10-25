@@ -1,8 +1,38 @@
-[project]
-name = "smart-heating"
-version = "0.1.0"
-requires-python = ">=3.12"
+# Tool configuration only: the integration ships through HACS, its version lives in
+# custom_components/smart_heating/manifest.json (the single source of truth).
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# pytest-homeassistant-custom-component runs async tests on Home Assistant's event loop.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "PIE", "C4"]
+ignore = [
+    "E501",    # long translated strings and test tables read better on one line
+    "RUF001",  # Dutch texts and degree signs are intended
+    "ISC004",  # implicit concatenation of long strings in tables is intended
+    "RUF012",  # Home Assistant entities declare `_attr_*` lists as class attributes
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["custom_components/smart_heating"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+no_implicit_optional = true
+
+# The pure engine has no Home Assistant imports and is held to a stricter standard.
+[[tool.mypy.overrides]]
+module = "custom_components.smart_heating.engine.*"
+disallow_untyped_defs = true
