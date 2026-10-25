@@ -29,6 +29,8 @@ from .const import (
     CONF_GAS_ENTITY,
     CONF_HDD_BASE,
     CONF_MANUAL_OVERRIDE_MINUTES,
+    CONF_NOTIFY_DELAY_MINUTES,
+    CONF_NOTIFY_TARGETS,
     CONF_OUTAGE_FAILURES,
     CONF_OUTDOOR_ENTITY,
     CONF_PERSONS,
@@ -47,6 +49,7 @@ from .const import (
     DEFAULT_BOILER_LOW,
     DEFAULT_BOOST_MINUTES,
     DEFAULT_MANUAL_OVERRIDE_MINUTES,
+    DEFAULT_NOTIFY_DELAY_MINUTES,
     DEFAULT_PRE_BED_END,
     DEFAULT_PRE_BED_START,
     DEFAULT_VACATION_KEYWORDS,
@@ -102,6 +105,8 @@ ADVANCED_KEYS = (
     CONF_OUTAGE_FAILURES,
     CONF_SENSOR_STALE_HOURS,
     CONF_BATTERY_LOW_PERCENT,
+    CONF_NOTIFY_TARGETS,
+    CONF_NOTIFY_DELAY_MINUTES,
     CONF_Z2M_BASE_TOPIC,
 )
 SETTING_KEYS = REPORT_KEYS + HEATING_KEYS + ADVANCED_KEYS
@@ -190,6 +195,7 @@ def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> v
             opt(
                 "lead_time_minutes", engine_defaults.lead_time.total_seconds() / 60
             ): _number(0, 480, 5, "min"),
+            opt("compensate_trv", engine_defaults.compensate_trv): selector.BooleanSelector(),
             opt("window_detection", engine_defaults.window_detection): selector.BooleanSelector(),
             opt("window_drop", engine_defaults.window_drop): _number(0.5, 10, 0.1, "°C"),
             opt(
@@ -345,10 +351,22 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                 opt(CONF_OUTAGE_FAILURES, alerts.outage_after_failures): _number(1, 20, 1),
                 opt(CONF_SENSOR_STALE_HOURS, hours(alerts.sensor_stale_after)): _number(1, 48, 0.5, "h"),
                 opt(CONF_BATTERY_LOW_PERCENT, alerts.battery_low_percent): _number(5, 50, 1, "%"),
+                opt(CONF_NOTIFY_TARGETS, []): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=self._notify_services(), multiple=True, custom_value=True
+                    )
+                ),
+                opt(CONF_NOTIFY_DELAY_MINUTES, DEFAULT_NOTIFY_DELAY_MINUTES): _number(0, 240, 5, "min"),
                 opt(CONF_Z2M_BASE_TOPIC, DEFAULT_Z2M_BASE_TOPIC): selector.TextSelector(),
             }
         )
         return self.async_show_form(step_id="advanced_settings", data_schema=schema)
+
+    def _notify_services(self) -> list[str]:
+        """Notify services to push alerts to (phones and the like), as `notify.<name>`."""
+        names = self.hass.services.async_services_for_domain("notify")
+        skip = {"send_message", "persistent_notification"}
+        return sorted(f"notify.{name}" for name in names if name not in skip)
 
     async def async_step_save(self, user_input=None):
         return self.async_create_entry(data={CONF_ROOMS: self.rooms, **self._settings})

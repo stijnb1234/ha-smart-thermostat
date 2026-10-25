@@ -5,6 +5,7 @@ from datetime import datetime
 
 from .alerts import compute_alerts
 from .boiler import boiler_setpoint, demand_rooms
+from .compensation import trv_writes
 from .models import EPSILON, Decision, EngineInput, Reason, RoomConfig
 from .overrides import boosted_rooms, manual_override_active
 from .presence import presence_setpoint
@@ -116,8 +117,12 @@ def decide(inp: EngineInput) -> Decision:
     for room in inp.config.rooms:
         trv_setpoints[room.name], reasons[room.name] = _target(room, inp, boosted, paused)
     _floor_first(inp, trv_setpoints, reasons, room_temps)
-    trv = check_trvs(inp, trv_setpoints)
-    hand_set = {r: inp.trv_observed[r] for r in trv.manual if r in inp.trv_observed}
+    writes = trv_writes(inp, trv_setpoints)
+    trv = check_trvs(inp, writes)
+    # In Room terms: a corrected TRV's hand-set value minus the correction it was given.
+    hand_set = {
+        r: inp.trv_observed[r] - (writes[r] - trv_setpoints[r]) for r in trv.manual if r in inp.trv_observed
+    }
     for room_name in hand_set:
         reasons[room_name] = "manual"
     calling = demand_rooms(inp.config, trv_setpoints, room_temps, hand_set, inp.coast)
@@ -144,4 +149,5 @@ def decide(inp: EngineInput) -> Decision:
         demand_rooms=calling,
         hand_set=hand_set,
         open_radiators_capping=capping,
+        trv_writes=writes,
     )

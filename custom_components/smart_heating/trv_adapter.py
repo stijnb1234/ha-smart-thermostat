@@ -142,6 +142,13 @@ class TrvAdapter:
             self._written[room] = target
             self._written_at[room] = datetime.now(UTC)
 
+    def takes_external_temperature(self, room: str) -> bool:
+        """Whether a pushed room temperature can reach this Room's TRV at all."""
+        device = self._devices.get(room)
+        if device is None:
+            return False
+        return device.external_number is not None or (device.mqtt_topic is not None and self._mqtt_available())
+
     def _mqtt_available(self) -> bool:
         has_service = getattr(self._hass.services, "has_service", None)
         return has_service is None or has_service("mqtt", "publish")

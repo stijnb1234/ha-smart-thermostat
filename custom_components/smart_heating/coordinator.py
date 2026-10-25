@@ -21,11 +21,14 @@ from .boiler_adapter import make_boiler_adapter
 from .const import (
     CONF_ARRIVAL_ENTITIES,
     CONF_AUTO_ARRIVAL,
+    CONF_NOTIFY_DELAY_MINUTES,
+    CONF_NOTIFY_TARGETS,
     CONF_OUTDOOR_ENTITY,
     CONF_PERSONS,
     CONF_VACATION_CALENDAR,
     CONF_VACATION_KEYWORDS,
     DEFAULT_AUTO_ARRIVAL,
+    DEFAULT_NOTIFY_DELAY_MINUTES,
     DEFAULT_VACATION_KEYWORDS,
     DOMAIN,
     UPDATE_INTERVAL_SECONDS,
@@ -116,7 +119,12 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             auto_arrival=opts.get(CONF_AUTO_ARRIVAL, DEFAULT_AUTO_ARRIVAL),
             also_track=occupants,
         )
-        self.alerts = AlertAdapter(hass, self.lang)
+        self.alerts = AlertAdapter(
+            hass,
+            self.lang,
+            opts.get(CONF_NOTIFY_TARGETS, []),
+            timedelta(minutes=float(opts.get(CONF_NOTIFY_DELAY_MINUTES, DEFAULT_NOTIFY_DELAY_MINUTES))),
+        )
         self._vacation = shared["vacation"]
         self._calendar = opts.get(CONF_VACATION_CALENDAR)
         self._keywords = parse_keywords(opts.get(CONF_VACATION_KEYWORDS, DEFAULT_VACATION_KEYWORDS))
@@ -132,6 +140,10 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         self._last_seen: dict[str, datetime] = {}
         # Last good external reading, so a sensor that goes unavailable ages into a stale alert.
         self._last_external: dict[str, SensorReading] = {}
+
+    @property
+    def has_boiler(self) -> bool:
+        return self._boiler is not None
 
     @property
     def learner(self) -> LeadTimeLearner:
@@ -197,6 +209,9 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             boiler_observed=self._boiler.observed_setpoint if self._boiler else None,
             absent_rooms=self._absent_rooms(now),
             trv_off=self._trv.stuck_off(),
+            trv_without_external=frozenset(
+                room for room in self.trv_devices if not self._trv.takes_external_temperature(room)
+            ),
             trv_observed={room: v for room in self.trv_devices if (v := self._trv.observed(room)) is not None},
         )
 
@@ -265,7 +280,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         # Independent steps: one failing write must not skip the rest of the cycle.
         await run_isolated(
             [
-                ("trv setpoints", lambda: self._trv.async_apply(decision.trv_setpoints, decision.trv_rewrite)),
+                ("trv setpoints", lambda: self._trv.async_apply(decision.trv_writes or decision.trv_setpoints, decision.trv_rewrite)),
                 ("trv mode", self._trv.async_fix_modes),
                 ("external temperature", push),
                 ("boiler", boiler),

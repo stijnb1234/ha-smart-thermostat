@@ -127,3 +127,19 @@ def test_manual_hold_status_and_text():
     assert hold_text(st.hold_until, NOW) == "Respecting a manual change until 10:30"
     assert hold_text(None, NOW) == "No"
     assert boiler_status(*make({"Work room": 20.0})).hold_until is None
+
+
+def test_room_is_heating_only_while_it_calls_and_the_boiler_call_is_on():
+    from dataclasses import replace
+
+    from custom_components.smart_heating.status import room_heating
+
+    inp, decision = make({"office": 17.0})
+    calling = replace(decision, demand_rooms=("office",), boiler_setpoint=inp.config.boiler_high)
+    assert room_heating("office", inp, calling)
+    # Calling, but the boiler write is still held back (debounce): not heating yet.
+    held_back = replace(calling, boiler_setpoint=inp.config.boiler_low)
+    assert not room_heating("office", inp, held_back)
+    assert room_heating("office", inp, held_back, boiler_configured=False)
+    # Below target but inside the demand band: not calling, so idle.
+    assert not room_heating("office", inp, replace(decision, demand_rooms=()))

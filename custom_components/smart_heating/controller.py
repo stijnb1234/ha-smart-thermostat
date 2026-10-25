@@ -61,6 +61,7 @@ class Snapshot:
     trv_observed: Mapping[str, float] = field(default_factory=dict)
     absent_rooms: frozenset[str] = frozenset()
     trv_off: frozenset[str] = frozenset()
+    trv_without_external: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -218,6 +219,7 @@ class Controller:
             coast={r.name: c for r in rooms if (c := self.insights.coast(r.name)) is not None},
             learned_offsets=offsets,
             stalled=self._stall.stalled(snap.now),
+            trv_without_external=snap.trv_without_external,
         )
         decision = decide(inp)
         self._last = (decision, inp.coast)

@@ -55,6 +55,9 @@ class RoomConfig:
     window_drop: float = 0.8
     window_period: timedelta = timedelta(minutes=15)
     window_pause: timedelta = timedelta(minutes=20)
+    # Correct the TRV setpoint for its sensor's difference with the room sensor, when the TRV
+    # cannot take an external temperature (see compensation.py).
+    compensate_trv: bool = True
     # Stable id for entities and storage (the engine itself keys Rooms by name).
     id: str = field(default="", compare=False)
 
@@ -194,6 +197,8 @@ class EngineInput:
     learned_offsets: Mapping[str, float] = field(default_factory=dict)
     # Rooms that have called for heat for a long time without warming up.
     stalled: frozenset[str] = frozenset()
+    # Rooms whose TRV takes no external temperature (its setpoint may be corrected instead).
+    trv_without_external: frozenset[str] = frozenset()
 
 
 Reason = Literal[
@@ -227,6 +232,9 @@ class Decision:
     demand_rooms: tuple[str, ...] = ()
     # Open-radiator Rooms warm enough to stop every boiler call (carried back via Commands).
     open_radiators_capping: frozenset[str] = frozenset()
+    # What to write to each TRV: its Room's target, corrected for TRVs that take no external
+    # temperature. Empty means "the same as trv_setpoints".
+    trv_writes: Mapping[str, float] = field(default_factory=dict)
 
 
 ALL_DAYS = frozenset(range(7))

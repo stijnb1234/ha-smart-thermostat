@@ -26,6 +26,7 @@ from .coordinator import SmartHeatingCoordinator
 from .dashboard import entity_id
 from .engine import RoomConfig
 from .i18n import tr
+from .status import room_heating
 
 ATTR_DURATION = "duration"
 
@@ -74,10 +75,12 @@ class RoomClimate(CoordinatorEntity[SmartHeatingCoordinator], ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction | None:
-        cur, target = self.current_temperature, self.target_temperature
-        if cur is None or target is None:
+        """Heating while this Room actually calls the boiler (see status.room_heating)."""
+        data = self.coordinator.data
+        if not data or self._room not in data.decision.room_temps:
             return None
-        return HVACAction.HEATING if cur < target else HVACAction.IDLE
+        heating = room_heating(self._room, data.inp, data.decision, self.coordinator.has_boiler)
+        return HVACAction.HEATING if heating else HVACAction.IDLE
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:

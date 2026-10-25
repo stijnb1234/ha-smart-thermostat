@@ -56,6 +56,15 @@ def boiler_status(inp: EngineInput, decision: Decision) -> BoilerStatus:
     )
 
 
+def room_heating(room: str, inp: EngineInput, decision: Decision, boiler_configured: bool = True) -> bool:
+    """A Room is heating while it calls the boiler and the boiler call is on (hysteresis and
+    debounce included, so this does not flicker around the target). Without a boiler
+    thermostat the call itself is not tracked: calling is enough."""
+    if room not in decision.demand_rooms:
+        return False
+    return not boiler_configured or boiler_status(inp, decision).call_active
+
+
 def demand_text(status: BoilerStatus, lang: str = DEFAULT_LANGUAGE) -> str:
     names = [*status.demand_rooms, *([tr(lang, "demand.manual_override")] if status.manual_override else [])]
     return ", ".join(names) if names else tr(lang, "demand.none")

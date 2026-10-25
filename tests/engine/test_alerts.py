@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from custom_components.smart_heating.engine import (
+    Alert,
     AlertConfig,
     AlertNotifier,
     Commands,
@@ -141,3 +142,29 @@ def test_track_unmet_ignores_rooms_within_their_margin(clock):
     # 19.3 against 19.5 with a 0.3 K margin: inside the band the boiler deliberately leaves alone.
     assert track_unmet({}, t0, {"bedroom": 19.3}, {"bedroom": 19.5}, {"bedroom": 0.3}) == {}
     assert track_unmet({}, t0, {"bedroom": 19.1}, {"bedroom": 19.5}, {"bedroom": 0.3}) == {"bedroom": t0}
+
+
+def test_push_waits_until_an_alert_has_lasted_the_delay_and_reports_resolution_once(clock):
+    from custom_components.smart_heating.engine.alerts import AlertPush
+
+    push = AlertPush(delay=timedelta(minutes=15))
+    offline = Alert("trv_offline", "bedroom")
+    t0 = clock.now()
+    assert push.update((offline,), t0).raised == ()
+    assert push.update((offline,), t0 + timedelta(minutes=14)).raised == ()
+    assert push.update((offline,), t0 + timedelta(minutes=15)).raised == (offline,)
+    assert push.update((offline,), t0 + timedelta(minutes=16)).raised == ()  # once
+    assert push.update((), t0 + timedelta(minutes=20)).cleared == (offline,)
+
+
+def test_push_ignores_an_alert_that_clears_within_the_delay(clock):
+    from custom_components.smart_heating.engine.alerts import AlertPush
+
+    push = AlertPush(delay=timedelta(minutes=15))
+    t0 = clock.now()
+    push.update((Alert("trv_offline", "bedroom"),), t0)
+    changes = push.update((), t0 + timedelta(minutes=5))
+    assert changes.raised == () and changes.cleared == ()
+    # A flap restarts the wait.
+    push.update((Alert("trv_offline", "bedroom"),), t0 + timedelta(minutes=6))
+    assert push.update((Alert("trv_offline", "bedroom"),), t0 + timedelta(minutes=20)).raised == ()

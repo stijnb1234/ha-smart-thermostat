@@ -70,6 +70,7 @@
           "schedule_text": "Comfortschema (gaat boven de voorinstelling)",
           "trv_offset": "Correctie kraansensor (0 = laat het systeem leren)",
           "lead_time_minutes": "Voorverwarmtijd (tot het geleerd is)",
+          "compensate_trv": "Instelwaarde van de kraan corrigeren met de kamersensor (alleen voor kranen die geen externe temperatuur aannemen)",
           "window_detection": "Open-raamdetectie",
           "window_drop": "Open-raamdaling (maximum; per ruimte lager geleerd)",
           "window_pause_minutes": "Pauze bij open raam (15-30 min)"
@@ -100,6 +101,7 @@
           "schedule_text": "Comfortschema (gaat boven de voorinstelling)",
           "trv_offset": "Correctie kraansensor (0 = laat het systeem leren)",
           "lead_time_minutes": "Voorverwarmtijd (tot het geleerd is)",
+          "compensate_trv": "Instelwaarde van de kraan corrigeren met de kamersensor (alleen voor kranen die geen externe temperatuur aannemen)",
           "window_detection": "Open-raamdetectie",
           "window_drop": "Open-raamdaling (maximum; per ruimte lager geleerd)",
           "window_pause_minutes": "Pauze bij open raam (15-30 min)"
@@ -113,7 +115,7 @@
       },
       "advanced_settings": {
         "title": "Boileraanvraag en meldingsdrempels",
-        "description": "Vertraging en pauze bij schrijfacties naar de ketelthermostaat (cloudlimieten), hysterese van de warmtevraag, meldingsdrempels en het Zigbee2MQTT-basistopic.",
+        "description": "Vertraging en pauze bij schrijfacties naar de ketelthermostaat (cloudlimieten), hysterese van de warmtevraag, meldingsdrempels en het Zigbee2MQTT-basistopic. Meldingen kunnen ook naar je telefoon: ze gaan pas weg als ze de wachttijd duren, met een bericht als ze zijn opgelost.",
         "data": {
           "debounce_minutes": "Wachttijd na een wijziging van de ketelthermostaat",
           "backoff_base_minutes": "Eerste pauze na een mislukte schrijfactie",
@@ -127,6 +129,8 @@
           "outage_after_failures": "Storing ketelthermostaat na mislukte schrijfacties",
           "sensor_stale_hours": "Externe sensor verouderd na",
           "battery_low_percent": "Batterij laag onder",
+          "notify_targets": "Meldingen ook sturen naar (meldingsdiensten, bijv. de app op je telefoon)",
+          "notify_delay_minutes": "Daarheen pas sturen als een melding al zo lang duurt",
           "z2m_base_topic": "Zigbee2MQTT-basistopic (voor kranen die de kamertemperatuur via MQTT krijgen)"
         }
       }

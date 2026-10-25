@@ -41,11 +41,16 @@ async def _gas_and_temps(hass, gas, outdoor, start, end):
 async def _room_hours_and_issues(hass, rooms, start, end):
     from homeassistant.components.recorder import get_instance, history
 
-    hours: dict[str, float] = {}
-    issues: list[str] = []
-    entities = {room["name"]: room["trv_entity"] for room in rooms if room.get("trv_entity")}
-    if not entities:  # Rooms without a TRV (manual, floor heating): no history to report
-        return hours, issues
+    from .dashboard import entity_id
+    from .rooms import is_manual, room_id
+
+    controlled = [r for r in rooms if not is_manual(r)]
+    # Heated hours from our own Room climate entities: hvac_action is "heating" while the Room
+    # calls the boiler, for any TRV and for floor-heating and open-radiator Rooms too.
+    climates = {r["name"]: entity_id("climate", room_id(r)) for r in controlled}
+    trvs = {r["name"]: r["trv_entity"] for r in controlled if r.get("trv_entity")}
+    if not climates:
+        return {}, []
     # hvac_action is an attribute: attribute-only changes must be included, which
     # state_changes_during_period leaves out (it only returns changes of the state itself).
     found = await get_instance(hass).async_add_executor_job(
@@ -53,16 +58,26 @@ async def _room_hours_and_issues(hass, rooms, start, end):
             hass,
             start,
             end,
-            list(entities.values()),
+            [*climates.values(), *trvs.values()],
             significant_changes_only=False,
         )
     )
-    for name, entity in entities.items():
-        states = [s for s in found.get(entity, []) if not isinstance(s, dict)]
-        samples = [(max(s.last_updated, start), s.attributes.get("hvac_action") == "heating") for s in states]
-        hours[name] = heated_hours(samples, end)
-        if any(s.state == "unavailable" for s in states):
-            issues.append(f"{name}: TRV was unavailable this week")
+
+    def states_of(entity: str) -> list:
+        return [s for s in found.get(entity, []) if not isinstance(s, dict)]
+
+    hours = {
+        name: heated_hours(
+            [(max(s.last_updated, start), s.attributes.get("hvac_action") == "heating") for s in states_of(entity)],
+            end,
+        )
+        for name, entity in climates.items()
+    }
+    issues = [
+        f"{name}: TRV was unavailable this week"
+        for name, entity in trvs.items()
+        if any(s.state == "unavailable" for s in states_of(entity))
+    ]
     return hours, issues
 
 

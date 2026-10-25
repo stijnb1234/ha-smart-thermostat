@@ -30,7 +30,10 @@ async def test_setup_creates_entities_and_calls_for_heat(hass, service_calls):
     assert hass.states.get("switch.smart_heating_vacation_mode").state == "off"
     assert hass.states.get("datetime.smart_heating_vacation_return") is not None
     assert ("climate", "set_temperature", {"entity_id": "climate.boiler", "temperature": 22.0}) in service_calls
-    assert ("climate", "set_temperature", {"entity_id": "climate.bed_trv", "temperature": 19.5}) in service_calls
+    # No MQTT and no external-temperature number: the valve regulates on its own sensor, which
+    # reads 18 against 17 in the room, so it gets the 19.5 target corrected by +1.
+    assert ("climate", "set_temperature", {"entity_id": "climate.bed_trv", "temperature": 20.5}) in service_calls
+    assert climate.attributes["hvac_action"] == "heating"
 
 
 async def test_boost_service_with_duration(hass):
@@ -124,3 +127,33 @@ async def test_unload_flushes_learned_data_and_diagnostics_work(hass):
     stored = coordinator._p.insights_store._store  # the flush wrote it under the Room id
     data = await stored.async_load()
     assert data["coasts"] == {"bed": [0.3]}
+
+
+async def test_alerts_are_pushed_to_configured_notify_services(hass):
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    from .conftest import OPTIONS
+
+    sent = async_mock_service(hass, "notify", "phone")
+    set_home(hass)
+    hass.states.async_set("sensor.bed_trv_battery", "8")  # low battery alert
+    await setup_entry(hass, {**OPTIONS, "notify_targets": ["notify.phone"], "notify_delay_minutes": 0})
+    assert [c.data["message"] for c in sent] == ["The battery of the radiator valve in Bedroom is low. Replace it soon."]
+
+    hass.states.async_set("sensor.bed_trv_battery", "90")
+    await hass.data[DOMAIN]["e1"]["coordinator"].async_refresh()
+    assert sent[-1].data["message"].startswith("Resolved: ")
+
+
+async def test_options_flow_saves_notify_and_correction_settings(hass):
+    set_home(hass)
+    entry = await setup_entry(hass)
+    flow = await hass.config_entries.options.async_init(entry.entry_id)
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"next_step_id": "advanced_settings"})
+    assert flow["step_id"] == "advanced_settings"
+    flow = await hass.config_entries.options.async_configure(
+        flow["flow_id"], {"notify_targets": ["notify.phone"], "notify_delay_minutes": 30}
+    )
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"next_step_id": "save"})
+    assert flow["type"] == "create_entry"
+    assert entry.options["notify_targets"] == ["notify.phone"] and entry.options["notify_delay_minutes"] == 30

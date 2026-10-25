@@ -54,3 +54,8 @@ DEFAULT_VACATION_KEYWORDS = "vacation, holiday, vakantie"
 
 # TRVs on Zigbee2MQTT without an external-temperature number entity get it over MQTT.
 CONF_Z2M_BASE_TOPIC = "z2m_base_topic"
+
+# Alerts pushed to notify services (phones) once they have lasted this long.
+CONF_NOTIFY_TARGETS = "notify_targets"
+CONF_NOTIFY_DELAY_MINUTES = "notify_delay_minutes"
+DEFAULT_NOTIFY_DELAY_MINUTES = 15

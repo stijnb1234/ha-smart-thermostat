@@ -212,6 +212,7 @@ CATALOG: dict[str, dict[str, str]] = {
         "hold.respecting": "Respecting a manual change until {at}",
         # alerts
         "alert.a_room": "a room",
+        "alert.resolved": "Resolved: {text}",
         "alert.boiler_outage": (
             "The boiler thermostat cannot be reached, so the boiler cannot be called reliably. "
             "The radiator valves keep following the schedule."
@@ -355,6 +356,7 @@ CATALOG: dict[str, dict[str, str]] = {
         "hold.no": "Nee",
         "hold.respecting": "Handmatige wijziging gerespecteerd tot {at}",
         "alert.a_room": "een ruimte",
+        "alert.resolved": "Opgelost: {text}",
         "alert.boiler_outage": (
             "De ketelthermostaat is onbereikbaar, dus de boiler kan niet betrouwbaar worden aangeroepen. "
             "De radiatorkranen blijven het schema volgen."

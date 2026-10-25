@@ -70,6 +70,7 @@
           "schedule_text": "Comfort schedule (overrides the preset)",
           "trv_offset": "TRV sensor offset (0 = let the system learn it)",
           "lead_time_minutes": "Pre-heat lead time (until learned)",
+          "compensate_trv": "Correct the valve setpoint with the room sensor (only for valves that cannot take an external temperature)",
           "window_detection": "Open-window detection",
           "window_drop": "Open-window drop (maximum; learned lower per room)",
           "window_pause_minutes": "Open-window pause (15-30 min)"
@@ -100,6 +101,7 @@
           "schedule_text": "Comfort schedule (overrides the preset)",
           "trv_offset": "TRV sensor offset (0 = let the system learn it)",
           "lead_time_minutes": "Pre-heat lead time (until learned)",
+          "compensate_trv": "Correct the valve setpoint with the room sensor (only for valves that cannot take an external temperature)",
           "window_detection": "Open-window detection",
           "window_drop": "Open-window drop (maximum; learned lower per room)",
           "window_pause_minutes": "Open-window pause (15-30 min)"
@@ -113,7 +115,7 @@
       },
       "advanced_settings": {
         "title": "Boiler call and alert thresholds",
-        "description": "Debounce and backoff of boiler thermostat writes (cloud rate limits), demand hysteresis, alert thresholds and the Zigbee2MQTT base topic.",
+        "description": "Debounce and backoff of boiler thermostat writes (cloud rate limits), demand hysteresis, alert thresholds and the Zigbee2MQTT base topic. Alerts can also go to your phone: they are sent once they have lasted the delay, with a message when they are resolved.",
         "data": {
           "debounce_minutes": "Debounce after a boiler thermostat change",
           "backoff_base_minutes": "First backoff after a failed write",
@@ -127,6 +129,8 @@
           "outage_after_failures": "Boiler thermostat outage after failed writes",
           "sensor_stale_hours": "External sensor stale after",
           "battery_low_percent": "Low battery below",
+          "notify_targets": "Also send alerts to (notify services, e.g. your phone's mobile app)",
+          "notify_delay_minutes": "Send to those only after an alert has lasted",
           "z2m_base_topic": "Zigbee2MQTT base topic (for TRVs that get the room temperature over MQTT)"
         }
       }
