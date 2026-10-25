@@ -48,7 +48,7 @@ Then follows a table with one line per room:
 
 ### Alerts
 
-This block only appears when something needs attention, for example a nearly empty battery. If you don't see it, everything is fine. Each alert is a plain sentence; further on in this manual you can read what to do about it.
+This block only appears when something needs attention, for example a nearly empty battery. If you don't see it, everything is fine. If the administrator has set it up, alerts that last a while also arrive on your phone, followed by a message once they are solved. Each alert is a plain sentence; further on in this manual you can read what to do about it.
 
 ### Controls
 

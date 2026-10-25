@@ -22,6 +22,7 @@ Config entry version 2 migrates option keys, assigns ids and moves entity unique
 ## Consequences
 
 - A rename keeps history, entity ids and learned data.
-- A TRV that takes no external temperature regulates on its own sensor; Smart Heating does not yet
-  compensate its setpoint for the difference with the room sensor.
+- A TRV that takes no external temperature gets a corrected setpoint instead (target plus its
+  sensor's difference with the room sensor, rounded, capped at 5 K, with a deadband); the Room's
+  target, demand and hand-change detection stay in Room terms.
 - Other boiler calls (relay, OpenTherm) are a new adapter, not engine changes.

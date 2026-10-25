@@ -16,6 +16,9 @@ external temperature goes over MQTT.
 **External temperature**: A separate room sensor's reading, pushed to the TRV so it regulates on
 the room temperature instead of its own sensor next to the radiator.
 
+**Setpoint correction**: For a TRV that cannot take an external temperature: the value written
+is the Room's target plus the difference between the TRV's sensor and the room sensor.
+
 **Open radiators**: A Room whose radiators have no smart valve yet and stay open. It has a sensor,
 calls the boiler when cold, and stops every boiler call once it reaches comfort (until it has
 cooled by the demand hysteresis) so the house does not overheat.

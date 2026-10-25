@@ -38,7 +38,5 @@ Timing defaults (debounce, backoff, settle times, lead time) are in
 
 ## Open items
 
-- TRVs that take no external temperature: compensate their setpoint for the difference between
-  their own sensor and the room sensor.
 - More boiler adapters (relay switch, OpenTherm).
 - Floor-loop actuators: floor heating only calls the boiler today.

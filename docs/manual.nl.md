@@ -188,7 +188,7 @@ De ketel blijft dan twee uur lang branden. Ben je eerder klaar, druk dan op **Ha
 
 ## Meldingen
 
-Een melding verschijnt alleen als er echt iets aandacht nodig heeft. Hij verdwijnt vanzelf zodra het probleem is opgelost. In de meldingen staat de naam van de kamer; hieronder staat *de kamer*.
+Een melding verschijnt alleen als er echt iets aandacht nodig heeft. Heeft de beheerder het ingesteld, dan komen meldingen die even duren ook op je telefoon binnen, met een bericht zodra ze zijn opgelost. Hij verdwijnt vanzelf zodra het probleem is opgelost. In de meldingen staat de naam van de kamer; hieronder staat *de kamer*.
 
 | Melding | Wat je kunt doen |
 | --- | --- |

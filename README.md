@@ -12,7 +12,7 @@ Room-by-room heating for Home Assistant. One boiler, several radiators: the boil
 **Rooms and the boiler**
 
 - Each **Room** gets a target temperature from its schedule, presence, Boost and Vacation mode (comfort 19.5 °C, setback 16 °C, frost-hold 12 °C by default).
-- Drives **any smart TRV** that Home Assistant shows as a `climate` entity (Zigbee2MQTT, ZHA, cloud valves): setpoint, calibration offset, and a valve that is switched off is turned back on. What the valve offers beyond that is found on its device: a battery sensor, valve opening, heating demand, and an **external room temperature** input (a number entity in °C, or Zigbee2MQTT over MQTT), so the valve regulates on the room's own thermometer.
+- Drives **any smart TRV** that Home Assistant shows as a `climate` entity (Zigbee2MQTT, ZHA, cloud valves): setpoint, calibration offset, and a valve that is switched off is turned back on. What the valve offers beyond that is found on its device: a battery sensor, valve opening, heating demand, and an **external room temperature** input (a number entity in °C, or Zigbee2MQTT over MQTT), so the valve regulates on the room's own thermometer. A valve that cannot take one gets its setpoint corrected instead: target plus the difference between its sensor and the room sensor (rounded, capped, with a deadband so it is not rewritten all the time; can be switched off per room).
 - Fires the boiler by raising the setpoint of the **boiler thermostat** (any `climate` entity that makes the boiler fire) only while at least one room has unmet demand; debounced, rate-limit safe, and a hung cloud call times out after 30 s instead of stalling the rest.
 - **Pre-heat** so rooms are warm at schedule time. The lead time follows how far the room has to come right now (a room back from frost-hold starts earlier, a room that is still warm later): learned per room from past warm-ups and the outdoor temperature, the fixed lead time scaled by the shortfall until then. Once pre-heat starts it is not cut short.
 - **Open-radiator** rooms (no TRV yet, temperature sensor required) call the boiler while cold, and once such a room reaches its comfort temperature all boiler calls stop until it has cooled 0.3 °C (no flapping), so other rooms cannot heat the house past it. Use this for rooms whose smart valves are not installed yet; switch the flag off after installing them.
@@ -41,9 +41,9 @@ Room-by-room heating for Home Assistant. One boiler, several radiators: the boil
 **Controls and insight**
 
 - **Boost** buttons per room (or the `smart_heating.boost` service with your own duration), and a **Manual-room override** that calls the boiler for rooms with ordinary radiator valves.
-- **Alerts**: TRV offline or switched off, TRV not accepting its setpoint, low battery, a comfort room clearly below target for hours, boiler thermostat unreachable, stale sensor.
+- **Alerts**: TRV offline or switched off, TRV not accepting its setpoint, low battery, a comfort room clearly below target for hours, boiler thermostat unreachable, stale sensor. Shown under the bell, and optionally pushed to notify services (your phone) once an alert has lasted a set time (15 min by default), with a message when it is resolved.
 - **Rename freely**: each room has a stable id, so renaming it keeps its entities, history and everything it learned.
-- **Weekly gas report** every Monday: m³ per heating-degree-day vs last year, heated hours per room, open issues.
+- **Weekly gas report** every Monday: m³ per heating-degree-day vs last year, hours each room called the boiler, open issues.
 - A generated **dashboard** with a plain-language overview, a page per room, a boiler page and a help page.
 - **English and Dutch**, following Home Assistant's language (Settings > System > General): options screens, entity names, dashboard sentences, alerts and the weekly report. Reload the integration after changing the language. Schedule text accepts Dutch day names (ma, di, wo, do, vr, za, zo, dagelijks).
 
@@ -78,7 +78,7 @@ Everything is configured in the UI: Settings → Devices & services → Smart He
 |---|---|
 | Add / edit / remove a room | Name, TRV entity, optional external sensor, comfort / setback / frost-hold, schedule preset (living area, working room, bedroom, none) or custom schedule text, offset, lead time, window detection, occupants and their heading-home signal. Rooms flagged *manual* have no TRV and only act through the Manual-room override; *floor heating* rooms have no TRV and need a sensor. |
 | Boiler, presence and vacation | Boiler thermostat, tracked persons, automatic heading-home detection (on by default) and extra heading-home signals, vacation calendar and keywords (`*` = every event), low / high boiler thermostat setpoints, Boost and override durations, bedroom pre-bed window. |
-| Boiler call and alert thresholds | Debounce, backoff, demand hysteresis, alert thresholds, battery %, Zigbee2MQTT base topic. |
+| Boiler call and alert thresholds | Debounce, backoff, demand hysteresis, alert thresholds, battery %, notify services for alerts and their delay, Zigbee2MQTT base topic. |
 | Gas report settings | Gas meter entity, outdoor sensor, heating-degree-day base (default 18 °C). |
 
 Schedule text: one comfort window per line, e.g.
@@ -119,7 +119,7 @@ lovelace:
 
 ## Entities
 
-Per room (`<domain>.smart_heating_<room id>[_<key>]`; the id is set from the name when the room is added and kept on rename): a read-only `climate`, sensors for *reason* (machine value), *summary* (plain sentence, e.g. "Warm from 17:00"), *next change* and *lead time*, and Boost and cancel-boost `button`s.
+Per room (`<domain>.smart_heating_<room id>[_<key>]`; the id is set from the name when the room is added and kept on rename): a read-only `climate` (its action is *heating* only while the room actually calls the boiler), sensors for *reason* (machine value), *summary* (plain sentence, e.g. "Warm from 17:00"), *next change* and *lead time*, and Boost and cancel-boost `button`s.
 
 System-wide: a Vacation `switch` and return `datetime`, Manual-room override start and cancel `button`s, `sensor.smart_heating_status`, `sensor.smart_heating_active_alerts` (count, plain-language `messages` attribute), `binary_sensor.smart_heating_boiler_call` and `sensor.smart_heating_boiler_*` (`demand_rooms`, `target`, `last_write`, `write_result`, `backoff`, `manual_hold`).
 
