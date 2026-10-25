@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from .const import CONF_GAS_ENTITY, CONF_HDD_BASE, CONF_OUTDOOR_ENTITY, CONF_ROOMS
 from .const import DOMAIN
 from .i18n import pick_language, tr
-from .report import DEFAULT_HDD_BASE, alert_issues, build_report, heated_hours
+from .report import DEFAULT_HDD_BASE, alert_issues, build_report, heated_hours, suggestion_lines
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -74,7 +74,9 @@ async def async_send_report(hass: HomeAssistant, entry: ConfigEntry) -> None:
     last_gas, last_temps = await _gas_and_temps(hass, gas, outdoor, start - YEAR_AGO, end - YEAR_AGO)
     hours, issues = await _room_hours_and_issues(hass, opts.get(CONF_ROOMS, []), start, end)
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get("coordinator")
+    suggestions: list[str] = []
     if coordinator is not None:
+        suggestions = suggestion_lines(coordinator.controller.suggestions(dt_util.now()), lang)
         notifier = coordinator.alerts.notifier
         issues += alert_issues(notifier.history, notifier.active, start, lang)
     if not gas:
@@ -84,7 +86,7 @@ async def async_send_report(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     report = build_report(
         gas_m3=this_gas, temps=temps, last_gas_m3=last_gas, last_temps=last_temps,
-        room_hours=hours, issues=issues, base=base,
+        room_hours=hours, issues=issues, base=base, suggestions=suggestions,
     )
     await hass.services.async_call(
         "persistent_notification",

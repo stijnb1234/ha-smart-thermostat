@@ -3,20 +3,33 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Sequence
 
-from .models import EPSILON, EngineInput, RoomConfig
+from .models import EPSILON, EngineInput, RoomConfig, SensorReading
 
 MIN_PAUSE = timedelta(minutes=15)
 MAX_PAUSE = timedelta(minutes=30)
 
 
-def _fast_fall(room: RoomConfig, inp: EngineInput) -> bool:
-    history = inp.temp_history.get(room.name, ())
-    cutoff = inp.now - room.window_period
-    recent = [r.value for r in history if cutoff <= r.at <= inp.now]
+def recent_drop(
+    history: Sequence[SensorReading], now: datetime, period: timedelta
+) -> float | None:
+    """How far the latest reading is below the highest one within `period` (None: too few)."""
+    cutoff = now - period
+    recent = [r.value for r in history if cutoff <= r.at <= now]
     if len(recent) < 2:
-        return False
-    return max(recent) - recent[-1] >= room.window_drop - EPSILON
+        return None
+    return max(recent) - recent[-1]
+
+
+def drop_threshold(room: RoomConfig, inp: EngineInput) -> float:
+    """The configured drop is the ceiling; a learned, lower value fits the Room's own noise."""
+    return min(room.window_drop, inp.window_thresholds.get(room.name, room.window_drop))
+
+
+def _fast_fall(room: RoomConfig, inp: EngineInput) -> bool:
+    drop = recent_drop(inp.temp_history.get(room.name, ()), inp.now, room.window_period)
+    return drop is not None and drop >= drop_threshold(room, inp) - EPSILON
 
 
 def window_pauses(inp: EngineInput) -> dict[str, datetime]:

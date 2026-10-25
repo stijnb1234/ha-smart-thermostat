@@ -263,3 +263,17 @@ def test_zone_arrival_counts_people_in_it():
     assert not is_arriving("person.a", "not_home")
     assert not is_arriving("binary_sensor.near", "off")
     assert not is_arriving("binary_sensor.near", None)
+
+
+def test_open_radiators_room_needs_sensor_not_trv_and_is_controlled():
+    import pytest
+
+    from custom_components.smart_heating.rooms import RoomError, room_from_form, to_engine_rooms, validate_room
+
+    with pytest.raises(RoomError):
+        validate_room({"name": "Living", "open_radiators": True})
+    stored = room_from_form({"name": "Living", "manual": True, "open_radiators": True, "sensor_entity": "sensor.t"})
+    validate_room(stored)
+    (engine_room,) = to_engine_rooms([stored])
+    assert engine_room.open_radiators and not engine_room.floor_heating
+    assert engine_room.lead_time.total_seconds() == 70 * 60

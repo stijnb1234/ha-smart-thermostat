@@ -122,6 +122,8 @@ These things happen automatically. You don't need to do anything.
 - **Room of someone who is away:** a room can belong to certain people, for example a study. If they are all away, that room stays at the lower temperature, even if the schedule says otherwise. A Boost still works.
 - **On the way home:** if the administrator has set this up, the system notices you are on your way, for example when you get close to home. The house then starts warming up, so it is warm when you walk in.
 - **Floor heating:** floor heating is slow. A room with floor heating therefore starts a few hours before the scheduled time. While it warms up, the radiators in rooms not in use stay closed, so the heat goes to the floor.
+- **Rooms without smart valves yet:** a room marked *open radiators* asks for heat when it is cold, and stops the boiler as soon as it is warm enough, so the whole house is not heated past that room.
+- **Learning:** per room the system learns how much the temperature normally fluctuates (so an open window is recognised sooner), how far the room keeps warming after the boiler stops (so the boiler stops early enough), and how its thermometer differs from the valve's. In the Monday report it suggests schedule times if you often press Boost or turn the valve up around the same time outside the schedule. It never changes the schedule by itself.
 - **Valve switched off:** if a smart radiator valve is switched off, the system switches it back on.
 - **Weekly report:** every Monday at 08:00 you get a notification in Home Assistant (under the bell). It shows how much gas was used compared to last year, taking into account how cold it was, how many hours each room was heated, and whether there were any problems.
 
@@ -164,6 +166,7 @@ An alert only appears when something really needs attention. It disappears by it
 | The radiator valve in the room is switched off and does not turn back on. | The system tried to switch the valve on but could not. Check the valve itself or let the administrator know. |
 | The radiator valve in the room does not accept its temperature. | The valve was sent a temperature a few times but did not take it. New batteries often help. |
 | The temperature sensor in the room stopped reporting. | The separate thermometer in that room has gone quiet. Check whether its battery is empty. Until then the system uses the thermometer in the radiator valve. |
+| The room keeps asking for heat but is not warming up. | A window may be open, or the radiator is not working. Check both. |
 | The room has been too cold for a long time and is not reaching its target. | Check whether a window or door is open and whether the radiator gets warm. If it stays this way, let the administrator know. |
 | The Bosch cloud cannot be reached. | The boiler cannot be controlled reliably for now. The radiator valves keep following the schedule. This usually sorts itself out. |
 

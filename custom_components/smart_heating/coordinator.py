@@ -57,6 +57,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         learner,
         commands_store=None,
         restored: Commands | None = None,
+        insights_store=None,
+        insights=None,
     ) -> None:
         super().__init__(
             hass,
@@ -73,8 +75,11 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
         config = build_engine_config(shared["rooms"], opts)
         self._battery_low_percent = config.alerts.battery_low_percent
         self.controller = Controller(
-            config, learner, shared["boosts"], shared["manual_overrides"]
+            config, learner, shared["boosts"], shared["manual_overrides"], insights
         )
+        self._insights_store = insights_store
+        self._insights_saved = dt_util.utcnow()
+        self._insights_pending = False
         self._trv = TrvAdapter(hass, shared["trv_entities"])
         ec_entity = opts.get(CONF_EASYCONTROL_ENTITY)
         self._ec = EasyControlAdapter(hass, ec_entity) if ec_entity else None
@@ -215,8 +220,21 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[Cycle]):
             self._commands_store.save_if_changed(self.controller.commands)
         if self.controller.take_learner_dirty():
             await self._store.async_save(self._learner)
+        await self._save_insights()
         await self._clear_finished_vacation(snap)
         return cycle
+
+    async def _save_insights(self) -> None:
+        """Insights change every few minutes; write them to disk at most every 15 minutes."""
+        self._insights_pending = self.controller.take_insights_dirty() or self._insights_pending
+        now = dt_util.utcnow()
+        if (
+            self._insights_store is not None
+            and self._insights_pending
+            and now - self._insights_saved >= timedelta(minutes=15)
+        ):
+            await self._insights_store.async_save(self.controller.insights)
+            self._insights_saved, self._insights_pending = now, False
 
     def _log_manual_changes(self, decision) -> None:
         manual = frozenset(decision.trv_manual)

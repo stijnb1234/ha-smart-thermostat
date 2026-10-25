@@ -123,6 +123,6 @@ _ALERT_KEYS = {
     f"alert.{c}"
     for c in (
         "bosch_outage", "trv_offline", "trv_off", "trv_write_failed",
-        "low_battery", "sensor_stale", "target_not_reached",
+        "low_battery", "sensor_stale", "target_not_reached", "not_warming",
     )
 }

@@ -16,6 +16,7 @@ def demand_rooms(
     trv_setpoints: Mapping[str, float],
     room_temps: Mapping[str, float],
     hand_set: Mapping[str, float] | None = None,
+    coast: Mapping[str, float] | None = None,
 ) -> tuple[str, ...]:
     """Rooms heating to comfort that are colder than target by more than the hysteresis.
 
@@ -23,8 +24,11 @@ def demand_rooms(
     drift down and the boiler should not fire for a few tenths of a degree.
     A Room whose TRV was set by hand (`hand_set`: Room -> that setpoint) calls for heat
     when the hand-set value is above its setback, as that shows someone wants it warm.
+    A Room that is learned to keep rising `coast` K after the call ends widens its
+    hysteresis by that much, so the call ends early enough not to overshoot.
     """
     hand_set = hand_set or {}
+    coast = coast or {}
     calling = []
     for room in config.rooms:
         if room.name not in room_temps:
@@ -35,7 +39,8 @@ def demand_rooms(
         else:
             wanted = trv_setpoints[room.name]
             wants = wanted >= room.comfort - EPSILON
-        if wants and room_temps[room.name] < wanted - config.demand_hysteresis:
+        margin = max(config.demand_hysteresis, coast.get(room.name, 0.0))
+        if wants and room_temps[room.name] < wanted - margin:
             calling.append(room.name)
     return tuple(calling)
 

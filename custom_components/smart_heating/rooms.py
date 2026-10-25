@@ -1,7 +1,7 @@
 """Pure mapping between stored Room config (config entry options) and the engine.
 
 No Home Assistant imports. A stored room is a JSON-serialisable dict:
-  name, [trv_entity], [manual], [floor_heating: no TRV, needs sensor; long pre-heat], [sensor_entity], [arrival_entities: same kinds, or a person in a zone; active = heading home, room warms early],
+  name, [trv_entity], [manual], [floor_heating: no TRV, needs sensor; long pre-heat], [open_radiators: no TRV yet, needs sensor; caps the boiler call at its comfort], [sensor_entity], [arrival_entities: same kinds, or a person in a zone; active = heading home, room warms early],
   [presence_entities: person/tracker/switch ids; room is skipped by the
   schedule while all are away], [comfort], [setback], [frost_hold],
   [trv_offset], [lead_time_minutes], [window_detection], [window_drop],
@@ -154,8 +154,8 @@ def room_from_form(
     """Stored Room from room-form input. A blank schedule text takes the chosen preset."""
     skip = ("schedule_text", "preset")
     room = {k: v for k, v in user_input.items() if k not in skip and v not in (None, "")}
-    if room.get("floor_heating"):
-        room.pop("manual", None)  # a floor heating room is controlled: not a manual room
+    if room.get("floor_heating") or room.get("open_radiators"):
+        room.pop("manual", None)  # a sensor-only room is controlled: not a manual room
     if room.get("floor_heating") and float(room.get("lead_time_minutes", 0)) == (
         DEFAULT_LEAD_TIME.total_seconds() / 60
     ):
@@ -171,7 +171,7 @@ def room_from_form(
 def validate_room(room: Mapping[str, Any]) -> None:
     if not str(room.get("name", "")).strip():
         raise RoomError("name_required")
-    if room.get("floor_heating"):
+    if room.get("floor_heating") or room.get("open_radiators"):
         if not str(room.get("sensor_entity", "")).strip():
             raise RoomError("floor_needs_sensor")
     elif not room.get("manual") and not str(room.get("trv_entity", "")).strip():
@@ -234,6 +234,7 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
             frost_hold=float(r.get("frost_hold", DEFAULT_FROST_HOLD)),
             trv_offset=float(r.get("trv_offset", defaults.trv_offset)),
             floor_heating=bool(r.get("floor_heating")),
+            open_radiators=bool(r.get("open_radiators")),
             lead_time=timedelta(minutes=float(r["lead_time_minutes"]))
             if "lead_time_minutes" in r
             else (DEFAULT_FLOOR_LEAD_TIME if r.get("floor_heating") else defaults.lead_time),
@@ -255,8 +256,8 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
 
 
 def is_manual(room: Mapping[str, Any]) -> bool:
-    """A manual room is not controlled by the engine. Floor heating wins over the manual flag."""
-    return bool(room.get("manual")) and not room.get("floor_heating")
+    """A manual room is not controlled by the engine. Floor heating and open radiators win over the manual flag."""
+    return bool(room.get("manual")) and not (room.get("floor_heating") or room.get("open_radiators"))
 
 
 def trv_entities(rooms: Sequence[Mapping[str, Any]]) -> dict[str, str]:

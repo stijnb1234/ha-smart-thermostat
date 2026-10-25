@@ -87,3 +87,19 @@ def test_notifier_records_raise_history_with_time():
     n.update((a,), t + timedelta(minutes=1))
 
     assert n.history == [(t, a)] and n.active == (a,)
+
+
+def test_report_lists_schedule_suggestions_in_both_languages():
+    from datetime import time
+
+    from custom_components.smart_heating.engine.insights import Suggestion
+    from custom_components.smart_heating.report import suggestion_lines
+
+    s = Suggestion("Study", (0, 2), time(7, 10), 4)
+    en, nl = suggestion_lines([s], "en"), suggestion_lines([s], "nl")
+    assert "Study" in en[0] and "07:10" in en[0] and "Mon, Wed" in en[0]
+    assert "Study" in nl[0] and "ma, wo" in nl[0].lower()
+    report = build_report(
+        gas_m3=None, temps=[], last_gas_m3=None, last_temps=[], room_hours={}, issues=[], suggestions=en
+    )
+    assert "Suggestions:" in report.format("en") and en[0] in report.format("en")

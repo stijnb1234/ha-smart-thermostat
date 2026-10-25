@@ -11,7 +11,8 @@ from datetime import datetime
 from typing import Mapping, Sequence
 
 from .engine import Alert
-from .i18n import DEFAULT_LANGUAGE, tr
+from .engine.insights import Suggestion
+from .i18n import DEFAULT_LANGUAGE, tr, weekday
 from .status import alert_sentence
 
 DEFAULT_HDD_BASE = 18.0
@@ -49,6 +50,7 @@ class Report:
     last_year_m3_per_hdd: float | None
     room_hours: Mapping[str, float] = field(default_factory=dict)
     issues: Sequence[str] = ()
+    suggestions: Sequence[str] = ()
 
     @property
     def change_pct(self) -> float | None:
@@ -79,6 +81,8 @@ class Report:
         ] or [tr(lang, "report.no_data")]
         lines += ["", tr(lang, "report.issues")]
         lines += [f"- {i}" for i in self.issues] or [tr(lang, "report.no_issues")]
+        if self.suggestions:
+            lines += ["", tr(lang, "report.suggestions"), *(f"- {s}" for s in self.suggestions)]
         return "\n".join(lines)
 
 
@@ -91,6 +95,7 @@ def build_report(
     room_hours: Mapping[str, float],
     issues: Sequence[str],
     base: float = DEFAULT_HDD_BASE,
+    suggestions: Sequence[str] = (),
 ) -> Report:
     return Report(
         gas_m3=gas_m3,
@@ -99,7 +104,22 @@ def build_report(
         last_year_m3_per_hdd=m3_per_hdd(last_gas_m3, last_temps, base),
         room_hours=dict(room_hours),
         issues=list(issues),
+        suggestions=list(suggestions),
     )
+
+
+def suggestion_lines(suggestions: Sequence[Suggestion], lang: str = DEFAULT_LANGUAGE) -> list[str]:
+    """One plain sentence per suggested schedule window."""
+    return [
+        tr(
+            lang, "report.suggestion",
+            room=s.room,
+            days=", ".join(weekday(lang, d) for d in s.days),
+            time=s.start.strftime("%H:%M"),
+            count=s.events,
+        )
+        for s in suggestions
+    ]
 
 
 def alert_issues(

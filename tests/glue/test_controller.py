@@ -161,3 +161,37 @@ def test_lost_trv_write_is_rewritten():
     cycle = c.step(snap(T0 + timedelta(minutes=15), trv_observed={"work": 12.0}))
 
     assert cycle.decision.trv_rewrite == frozenset({"work"})
+
+
+def test_new_boosts_are_remembered_as_wishes_but_restored_ones_are_not():
+    boosts = {"work": Boost(T0, timedelta(minutes=60))}
+    c = make(boosts)
+    c.step(snap(T0))  # first cycle seeds: a boost restored after a restart is not a new wish
+    assert c.take_insights_dirty() is False
+    boosts["work"] = Boost(T0 + timedelta(days=1), timedelta(minutes=60))
+    c.step(snap(T0 + timedelta(days=1)))
+    assert c.take_insights_dirty() is True
+
+
+def test_quiet_cycles_teach_the_window_threshold_and_a_drop_then_pauses_the_room():
+    c = make()
+    now = T0
+    for _ in range(60):  # five hours of steady temperatures, one sample per five minutes
+        now += timedelta(minutes=5)
+        c.step(snap(now, temp=19.0))
+    assert c.insights.window_threshold("work", ROOM.window_drop) == 0.5
+    c.step(snap(now + timedelta(minutes=5), temp=19.0))
+    cycle = c.step(snap(now + timedelta(minutes=6), temp=18.4))  # 0.6 K: below the stored 1.5 K
+    assert "work" in cycle.decision.window_paused_until
+
+
+def test_suggestions_come_from_repeated_hand_set_or_boost_wishes():
+    boosts = {"work": Boost(T0 - timedelta(days=9), timedelta(minutes=60))}
+    c = make(boosts)
+    c.step(snap(T0))
+    for day in (1, 2, 3):  # Tue-Thu: the room is only scheduled on Mondays
+        at = T0 + timedelta(days=day, hours=4)
+        boosts["work"] = Boost(at, timedelta(minutes=60))
+        c.step(snap(at))
+    (s,) = c.suggestions(T0 + timedelta(days=4))
+    assert s.room == "work" and s.start == time(7, 0) and s.days == (1, 2, 3)

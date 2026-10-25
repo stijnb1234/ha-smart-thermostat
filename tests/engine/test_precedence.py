@@ -90,3 +90,35 @@ def test_floor_preheat_keeps_idle_radiators_shut_and_calls_boiler(clock):
     assert d.external_temp_pushes == {}  # floor room has no TRV to push to
     warm = decide(__import__("dataclasses").replace(inp, external_temps={"bath": SensorReading(19.4, clock.now())}))
     assert warm.reasons["hall"] == "setback"
+
+
+def _open_radiator_home(clock, living_temp):
+    from datetime import time
+
+    from custom_components.smart_heating.engine import (
+        Commands, EngineConfig, EngineInput, RoomConfig, ScheduleWindow, SensorReading, decide,
+    )
+
+    clock.advance(hours=9)  # 12:00, inside both windows
+    window = (ScheduleWindow(frozenset(range(7)), time(6), time(23)),)
+    living = RoomConfig(name="living", open_radiators=True, schedule=window)
+    bedroom = RoomConfig(name="bedroom", schedule=window)
+    return decide(
+        EngineInput(
+            config=EngineConfig(rooms=(living, bedroom), easycontrol_low=10.0, easycontrol_high=22.0),
+            now=clock.now(), anyone_home=True, learned={}, last_commands=Commands(),
+            external_temps={"living": SensorReading(living_temp, clock.now())},
+            trv_temps={"bedroom": SensorReading(17.0, clock.now())},
+        )
+    )
+
+
+def test_open_radiator_room_at_comfort_stops_the_boiler_call_of_other_rooms(clock):
+    d = _open_radiator_home(clock, living_temp=19.6)
+    assert d.demand_rooms == () and d.easycontrol_setpoint == 10.0
+    assert d.external_temp_pushes == {}  # no TRV to push to
+
+
+def test_open_radiator_room_below_comfort_lets_the_boiler_call_through(clock):
+    d = _open_radiator_home(clock, living_temp=18.0)
+    assert set(d.demand_rooms) == {"living", "bedroom"} and d.easycontrol_setpoint == 22.0

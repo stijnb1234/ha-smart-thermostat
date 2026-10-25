@@ -15,6 +15,7 @@ Room-by-room heating for Home Assistant. One boiler, several radiators: the boil
 - Drives **Zigbee2MQTT smart TRVs**: setpoint, external room temperature, calibration offset. A valve that is switched off is turned back on.
 - Fires the boiler by raising the **Bosch EasyControl** setpoint (via [`ha-bosch-pointt`](https://github.com/stijnb1234/ha-bosch-pointt)) only while at least one room has unmet demand; debounced and 429-safe.
 - **Pre-heat** so rooms are warm at schedule time: a fixed lead time at first, then a lead time learned per room from past warm-ups and the outdoor temperature.
+- **Open-radiator** rooms (no TRV yet, temperature sensor required) call the boiler while cold, and once such a room reaches its comfort temperature all boiler calls stop, so other rooms cannot heat the house past it. Use this for rooms whose smart valves are not installed yet; switch the flag off after installing them.
 - **Floor heating** rooms (no TRV, temperature sensor required) follow their schedule with a long pre-heat (3 h by default, then learned), call the boiler while cold, and keep idle radiators at frost-hold during that pre-heat so the flow goes to the floor loops. Assumes the loops are always open.
 
 **Presence**
@@ -26,7 +27,12 @@ Room-by-room heating for Home Assistant. One boiler, several radiators: the boil
 
 **Automatic behaviour**
 
-- **Open-window detection**: a fast temperature drop pauses a room for 15–30 min.
+- **Open-window detection**: a fast temperature drop (read from the TRV sensor, which sits nearest the window) pauses a room for 15–30 min. The configured drop is a ceiling: each room learns its own normal fluctuation and uses a lower, tighter threshold once it has about 3 hours of quiet data.
+- **Self-learning** (persisted, per room, with safe fallbacks until there is data):
+  - *Coast*: how far a room keeps rising after the boiler call ends; the call then ends that much earlier to avoid overshoot.
+  - *Sensor offset*: the difference between the external sensor and the TRV sensor while the radiator is idle, used when only the TRV reading is available (unless an offset is set by hand).
+  - *Not warming*: a room that calls for heat for 45 min without warming 0.3 °C raises an alert (open window or a radiator that does not work).
+  - *Schedule suggestions*: Boosts and hand-set valves on at least 3 different days around the same time outside the schedule show up in the Monday report as a suggested schedule window. Nothing changes by itself.
 - **Hand changes are respected** (and survive restarts):
   - A temperature set on a radiator valve stays until that room's target next changes. It calls the boiler if it is above the room's setback and the room is colder than that.
   - A TRV that never took the temperature we sent gets it again, up to 3 times, then raises an alert.

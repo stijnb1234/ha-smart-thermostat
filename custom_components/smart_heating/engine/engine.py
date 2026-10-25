@@ -113,12 +113,12 @@ def decide(inp: EngineInput) -> Decision:
     pushes: dict[str, float] = {}
     for room in inp.config.rooms:
         temp, external = select_temperature(
-            room, inp.external_temps, inp.trv_temps, inp.now, inp.config.sensors
+            room, inp.external_temps, inp.trv_temps, inp.now, inp.config.sensors, inp.learned_offsets
         )
         if temp is None:
             continue
         room_temps[room.name] = temp
-        if external and not room.floor_heating and _needs_push(room.name, temp, inp):
+        if external and not (room.floor_heating or room.open_radiators) and _needs_push(room.name, temp, inp):
             pushes[room.name] = temp
     boosted = boosted_rooms(inp.boosts, inp.now)
     paused = {k: v for k, v in window_pauses(inp).items() if k not in boosted}
@@ -131,7 +131,9 @@ def decide(inp: EngineInput) -> Decision:
     hand_set = {r: inp.trv_observed[r] for r in trv.manual if r in inp.trv_observed}
     for room_name in hand_set:
         reasons[room_name] = "manual"
-    calling = demand_rooms(inp.config, trv_setpoints, room_temps, hand_set)
+    calling = demand_rooms(inp.config, trv_setpoints, room_temps, hand_set, inp.coast)
+    if any(r.open_radiators and room_temps.get(r.name, -1e9) >= r.comfort - EPSILON for r in inp.config.rooms):
+        calling = ()  # a room with open radiators is warm enough: stop heating the whole house
     demand = bool(calling) or manual_override_active(
         inp.manual_overrides, inp.now
     )

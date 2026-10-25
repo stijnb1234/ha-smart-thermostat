@@ -44,12 +44,15 @@ class RoomConfig:
     lead_time: timedelta = DEFAULT_LEAD_TIME
     # No TRV: heated by always-open floor loops, so it only calls the boiler (long pre-heat).
     floor_heating: bool = False
+    # No smart TRV (yet): radiators stay open, the room has a sensor. It calls the boiler like a
+    # floor-heating room and, once at comfort, stops further calls so the house cannot overheat.
+    open_radiators: bool = False
     trv_offset: float = 0.0  # added to the TRV sensor reading when no external sensor is used
     # Open-window detection: pause when temperature falls >= window_drop degC within
     # window_period; hold frost-hold for window_pause (clamped to 15-30 min).
     window_detection: bool = True
-    window_drop: float = 1.5
-    window_period: timedelta = timedelta(minutes=10)
+    window_drop: float = 0.8
+    window_period: timedelta = timedelta(minutes=15)
     window_pause: timedelta = timedelta(minutes=20)
 
 
@@ -174,6 +177,13 @@ class EngineInput:
     trv_observed: Mapping[str, float] = field(default_factory=dict)
     # Recent Room temperature readings per Room (oldest first) for window detection.
     temp_history: Mapping[str, tuple[SensorReading, ...]] = field(default_factory=dict)
+    # Learned per Room (see insights.py): open-window drop, extra rise after a call ends, and
+    # external-minus-TRV sensor offset. Missing while there is too little data.
+    window_thresholds: Mapping[str, float] = field(default_factory=dict)
+    coast: Mapping[str, float] = field(default_factory=dict)
+    learned_offsets: Mapping[str, float] = field(default_factory=dict)
+    # Rooms that have called for heat for a long time without warming up.
+    stalled: frozenset[str] = frozenset()
 
 
 Reason = Literal[

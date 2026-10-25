@@ -2,7 +2,7 @@
 
 from .alerts import AlertChanges, AlertNotifier, track_unmet
 from .engine import decide, in_window, lead_time_for, wants_comfort
-from .sensors import select_temperature
+from .sensors import select_temperature, select_window_temperature
 from .presence import vacation_end
 from .state import commands_from_dict, commands_to_dict
 from .models import (
@@ -51,6 +51,7 @@ __all__ = [
     "in_window",
     "wants_comfort",
     "select_temperature",
+    "select_window_temperature",
     "DEFAULT_LIVING_AREA_SCHEDULE",
     "DEFAULT_WORK_SCHEDULE",
     "Alert",

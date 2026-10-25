@@ -6,6 +6,8 @@ working room, bedroom, kitchen, bathroom).
 **Smart TRV**: A Shelly BLU TRV radiator valve controllable from Home Assistant. Present in living room left, living
 room right, sunroom, working room, bedroom.
 
+**Open radiators**: A room whose radiators have no smart valve yet and stay open. It has a sensor, calls the boiler when cold, and stops every boiler call once it reaches comfort so the house does not overheat.
+
 **Dumb TRV**: A manual radiator valve kept near frost-protection. Never drives heating.
 
 **Call for heat**: The signal that makes the boiler fire. Today only the Bosch EasyControl (living room right) can raise
@@ -36,6 +38,8 @@ briefly.
 
 **Floor heating**: Kitchen and bathroom loops on a mixing valve with a lower fixed flow temperature. Slow to respond, so
 needs long pre-heat. Deferred to a later phase.
+
+**Coast**: How far a room keeps warming after the boiler call ends; learned per room so the call can end earlier.
 
 **Boost**: A manual one-tap request to heat a room now.
 

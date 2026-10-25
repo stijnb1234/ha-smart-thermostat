@@ -142,6 +142,7 @@ def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> v
             vol.Required("name", description={"suggested_value": room.get("name")}): str,
             opt("manual", False): selector.BooleanSelector(),
             opt("floor_heating", False): selector.BooleanSelector(),
+            opt("open_radiators", False): selector.BooleanSelector(),
             opt("trv_entity"): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="climate")
             ),

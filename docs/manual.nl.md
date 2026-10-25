@@ -122,6 +122,8 @@ Deze dingen gebeuren automatisch. Je hoeft er niets voor te doen.
 - **Kamer van iemand die weg is:** een kamer kan bij bepaalde personen horen, bijvoorbeeld een werkkamer. Zijn die allemaal weg, dan blijft die kamer op de lagere temperatuur, ook als het schema iets anders zegt. Een Boost werkt wel gewoon.
 - **Onderweg naar huis:** als de beheerder dit heeft ingesteld, merkt het systeem dat je onderweg bent, bijvoorbeeld als je in de buurt van huis komt. Het huis begint dan alvast op te warmen, zodat het warm is als je binnenkomt.
 - **Vloerverwarming:** vloerverwarming is traag. Een kamer met vloerverwarming begint daarom al een paar uur voor de geplande tijd. Zolang die opwarmt, blijven de radiatoren in kamers die niet gebruikt worden dicht, zodat de warmte naar de vloer gaat.
+- **Kamers zonder slimme kranen:** een kamer met *open radiatoren* vraagt om warmte als het koud is en zet de ketel uit zodra het warm genoeg is, zodat het hele huis niet voorbij die kamer wordt verwarmd.
+- **Leren:** per kamer leert het systeem hoeveel de temperatuur normaal schommelt (zodat een open raam sneller wordt herkend), hoever de kamer nog opwarmt nadat de ketel stopt (zodat de ketel op tijd stopt) en hoe de thermometer afwijkt van die van de kraan. In het maandagrapport staan schematijden als je vaak rond dezelfde tijd buiten het schema op Boost drukt of de kraan hoger zet. Het schema verandert nooit vanzelf.
 - **Kraan uitgezet:** staat een slimme radiatorkraan uit, dan zet het systeem hem vanzelf weer aan.
 - **Weekrapport:** elke maandag om 08:00 krijg je een bericht in Home Assistant (bij het belletje). Daarin staat hoeveel gas er is gebruikt vergeleken met vorig jaar, rekening houdend met hoe koud het was, hoeveel uur elke kamer verwarmd is en of er problemen waren.
 
@@ -164,6 +166,7 @@ Een melding verschijnt alleen als er echt iets aandacht nodig heeft. Hij verdwij
 | De radiatorkraan in de kamer staat uit en gaat niet weer aan. | Het systeem probeerde de kraan aan te zetten, maar dat lukte niet. Kijk op de kraan zelf of laat het de beheerder weten. |
 | De radiatorkraan in de kamer neemt zijn temperatuur niet over. | De kraan kreeg een paar keer een temperatuur, maar nam die niet over. Vaak helpt nieuwe batterijen plaatsen. |
 | De temperatuursensor in de kamer meldt niets meer. | De losse thermometer in die kamer is stil. Kijk of de batterij leeg is. Tot die tijd gebruikt het systeem de thermometer in de radiatorkraan. |
+| De kamer vraagt steeds om warmte maar wordt niet warmer. | Mogelijk staat een raam open of werkt de radiator niet. Controleer beide. |
 | De kamer is al lange tijd te koud en haalt zijn doel niet. | Kijk of er een raam of deur openstaat en of de radiator warm wordt. Blijft het zo, laat het de beheerder weten. |
 | De Bosch-cloud is onbereikbaar. | De ketel kan even niet betrouwbaar worden aangestuurd. De radiatorkranen volgen gewoon het schema. Meestal lost dit zichzelf op. |
 

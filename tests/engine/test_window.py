@@ -78,7 +78,7 @@ def test_room_stays_paused_then_resumes(clock):
     settle(home)
     home.step(18.0)
     home.step(17.0)
-    for _ in range(18):
+    for _ in range(17):  # the 18.0 step already triggers (1.0 degC drop)
         assert home.step(17.0) == 12.0
     assert home.step(17.2) == 12.0  # 19 min after trigger: still paused
     assert home.step(17.4) == 19.5  # resumes after 20 min
@@ -117,3 +117,13 @@ def test_pause_duration_is_clamped_to_15_30_minutes(clock):
     for _ in range(29):
         home.step(17.0)
     assert home.step(17.0) == 19.5
+
+
+def test_default_sensitivity_catches_a_realistic_open_window(clock):
+    home = Home(clock)
+    settle(home)
+    temp = 19.0
+    for _ in range(15):
+        temp -= 0.06  # 0.9 degC in 15 min, well below the old 1.5 degC / 10 min threshold
+        home.step(temp)
+    assert home.decision.trv_setpoints["bedroom"] == 12.0

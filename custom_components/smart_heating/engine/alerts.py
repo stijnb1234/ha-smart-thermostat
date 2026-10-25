@@ -38,6 +38,8 @@ def compute_alerts(inp: EngineInput) -> tuple[Alert, ...]:
         ext = inp.external_temps.get(name)
         if ext is not None and inp.now - ext.at > cfg.sensor_stale_after:
             alerts.append(Alert("sensor_stale", name, f"External sensor in {name} stopped reporting"))
+        if name in inp.stalled:
+            alerts.append(Alert("not_warming", name, f"{name} keeps calling for heat but is not warming up"))
         since = inp.unmet_since.get(name)
         if since is not None and inp.now - since > cfg.target_window:
             alerts.append(Alert("target_not_reached", name, f"{name} is not reaching its target"))

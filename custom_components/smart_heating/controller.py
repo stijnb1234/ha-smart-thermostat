@@ -23,15 +23,21 @@ from .engine import (
     WriteResult,
     decide,
     lead_time_for,
-    select_temperature,
+    select_window_temperature,
     track_unmet,
+    wants_comfort,
 )
+from .engine.insights import RoomInsights, Suggestion
 from .engine.learner import LeadTimeLearner
+from .engine.trackers import CoastTracker, StallTracker
+from .engine.window import drop_threshold, recent_drop
 from .explain import Explanation, explain
 from .gather import update_history
 from .warmup import WarmupTracker
 
 HISTORY_KEEP = timedelta(minutes=30)
+# Quiet-time samples for the learned insights are taken this often (not every cycle).
+SAMPLE_EVERY = timedelta(minutes=5)
 
 
 @dataclass(frozen=True)
@@ -69,9 +75,17 @@ class Controller:
         learner: LeadTimeLearner,
         boosts: Mapping[str, Boost],
         manual_overrides: Mapping[str, ManualRoomOverride],
+        insights: RoomInsights | None = None,
     ) -> None:
         self._config = config
         self._learner = learner
+        self.insights = insights or RoomInsights()
+        self.insights_dirty = False
+        self._coast = CoastTracker()
+        self._stall = StallTracker()
+        self._seen_boosts: dict[str, datetime] | None = None
+        self._prev_hand: frozenset[str] = frozenset()
+        self._last_sample: datetime | None = None
         self._boosts = boosts  # shared with the button entities, read live
         self._overrides = manual_overrides
         self._history: dict[str, tuple[SensorReading, ...]] = {}
@@ -91,7 +105,7 @@ class Controller:
 
     def _record_history(self, snap: Snapshot) -> None:
         for room in self._config.rooms:
-            value, _ = select_temperature(
+            value = select_window_temperature(
                 room, snap.external, snap.trv, snap.now, self._config.sensors
             )
             if value is None:
@@ -139,9 +153,20 @@ class Controller:
             trv_off=snap.trv_off,
             vacation_until=snap.vacation_until,
             temp_history=dict(self._history),
+            window_thresholds={
+                r.name: t
+                for r in rooms
+                if (t := self.insights.window_threshold(r.name, r.window_drop)) is not None
+            },
+            coast={r.name: c for r in rooms if (c := self.insights.coast(r.name)) is not None},
+            learned_offsets={
+                r.name: o for r in rooms if (o := self.insights.offset(r.name)) is not None
+            },
+            stalled=self._stall.stalled(snap.now),
         )
         decision = decide(inp)
         self._targets = dict(decision.trv_setpoints)
+        self._learn_insights(snap, inp, decision)
         for room in rooms:
             warm = self._warmups.observe(
                 room.name,
@@ -158,6 +183,72 @@ class Controller:
                 self.learner_dirty = True
         explanations = {r.name: explain(r, inp, decision) for r in rooms}
         return Cycle(inp, decision, explanations, lead_times)
+
+    def _learn_insights(self, snap: Snapshot, inp: EngineInput, decision: Decision) -> None:
+        """Feed this cycle's observations to the stall/coast trackers and the insights."""
+        ins, now = self.insights, snap.now
+        calling = set(decision.demand_rooms)
+        sample = self._last_sample is None or now - self._last_sample >= SAMPLE_EVERY
+        if sample:
+            self._last_sample = now
+        for room in self._config.rooms:
+            name = room.name
+            temp = decision.room_temps.get(name)
+            reason = decision.reasons[name]
+            self._stall.observe(name, now, temp, name in calling)
+            rise = self._coast.observe(
+                name, now, temp, name in calling, valid=reason in ("schedule", "pre_heat")
+            )
+            if rise is not None:
+                ins.record_coast(name, rise)
+                self.insights_dirty = True
+            if not sample:
+                continue
+            if room.window_detection and name not in decision.window_paused_until:
+                drop = recent_drop(self._history.get(name, ()), now, room.window_period)
+                if drop is not None and drop < drop_threshold(room, inp):
+                    ins.record_drop(name, drop)
+                    self.insights_dirty = True
+            cfg = self._config.sensors
+            ext, trv = snap.external.get(name), snap.trv.get(name)
+            # Radiator idle (valve closed: room above the TRV's setpoint) so the TRV reads true.
+            if (
+                ext is not None
+                and trv is not None
+                and now - ext.at < cfg.external_stale_after
+                and now - trv.at < cfg.trv_stale_after
+                and ext.value > decision.trv_setpoints[name] + 0.2
+            ):
+                ins.record_offset(name, ext.value - trv.value)
+                self.insights_dirty = True
+        self._record_wishes(snap, decision)
+
+    def _record_wishes(self, snap: Snapshot, decision: Decision) -> None:
+        """Boosts and hand-set TRVs are wishes for warmth: input for schedule suggestions."""
+        seen = self._seen_boosts
+        self._seen_boosts = {name: b.start for name, b in self._boosts.items()}
+        if seen is not None:  # first cycle only seeds: boosts restored after a restart are not new
+            for name, start in self._seen_boosts.items():
+                if seen.get(name) != start:
+                    self.insights.record_event(name, snap.now)
+                    self.insights_dirty = True
+        setbacks = {r.name: r.setback for r in self._config.rooms}
+        for name, value in decision.hand_set.items():
+            if name not in self._prev_hand and value > setbacks.get(name, value):
+                self.insights.record_event(name, snap.now)
+                self.insights_dirty = True
+        self._prev_hand = frozenset(decision.hand_set)
+
+    def suggestions(self, now: datetime) -> list[Suggestion]:
+        """Recurring wishes for warmth that no schedule window covers yet."""
+        rooms = {r.name: r for r in self._config.rooms}
+        return self.insights.suggestions(
+            now, lambda name, at: name not in rooms or wants_comfort(rooms[name], at, {})
+        )
+
+    def take_insights_dirty(self) -> bool:
+        dirty, self.insights_dirty = self.insights_dirty, False
+        return dirty
 
     def confirm(
         self,

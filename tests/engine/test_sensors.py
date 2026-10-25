@@ -140,3 +140,16 @@ def test_stale_trv_reading_creates_no_boiler_demand(clock):
     d = decide(make_input(clock, trv_temps={"living": reading(clock, 5.0, age_min=45)}))
 
     assert d.easycontrol_setpoint == 10.0
+
+
+def test_window_temperature_prefers_the_trv_sensor_without_offset():
+    from datetime import datetime, timezone
+
+    from custom_components.smart_heating.engine import RoomConfig, SensorConfig, SensorReading
+    from custom_components.smart_heating.engine.sensors import select_window_temperature
+
+    now = datetime(2026, 1, 12, 12, 0, tzinfo=timezone.utc)
+    room = RoomConfig(name="bed", trv_offset=-1.0)
+    ext, trv = {"bed": SensorReading(19.0, now)}, {"bed": SensorReading(21.0, now)}
+    assert select_window_temperature(room, ext, trv, now, SensorConfig()) == 21.0
+    assert select_window_temperature(room, ext, {}, now, SensorConfig()) == 19.0
