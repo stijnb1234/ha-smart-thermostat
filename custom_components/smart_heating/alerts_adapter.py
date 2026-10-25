@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from .const import DOMAIN
@@ -29,7 +29,7 @@ class AlertAdapter:
         return self._notifier
 
     async def async_apply(self, alerts: tuple[Alert, ...]) -> None:
-        changes = self._notifier.update(alerts, datetime.now(timezone.utc))
+        changes = self._notifier.update(alerts, datetime.now(UTC))
         for alert in changes.raised:
             await self._hass.services.async_call(
                 "persistent_notification",

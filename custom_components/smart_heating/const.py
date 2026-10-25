@@ -3,13 +3,13 @@ CONF_ROOMS = "rooms"
 CONF_GAS_ENTITY = "gas_entity"
 CONF_OUTDOOR_ENTITY = "outdoor_entity"
 CONF_HDD_BASE = "hdd_base"
-CONF_EASYCONTROL_ENTITY = "easycontrol_entity"
+CONF_BOILER_ENTITY = "boiler_entity"
 CONF_PERSONS = "persons"
 CONF_ARRIVAL_ENTITIES = "arrival_entities"
-CONF_EASYCONTROL_LOW = "easycontrol_low"
-CONF_EASYCONTROL_HIGH = "easycontrol_high"
-DEFAULT_EASYCONTROL_LOW = 15.0
-DEFAULT_EASYCONTROL_HIGH = 22.0
+CONF_BOILER_LOW = "boiler_low"
+CONF_BOILER_HIGH = "boiler_high"
+DEFAULT_BOILER_LOW = 15.0
+DEFAULT_BOILER_HIGH = 22.0
 UPDATE_INTERVAL_SECONDS = 60
 DASHBOARD_FILE = "smart_heating_dashboard.yaml"
 
@@ -33,8 +33,8 @@ CONF_DEMAND_HYSTERESIS = "demand_hysteresis"
 
 # Manual changes.
 CONF_TRV_SETTLE_MINUTES = "trv_settle_minutes"
-CONF_EASYCONTROL_SETTLE_MINUTES = "easycontrol_settle_minutes"
-CONF_EASYCONTROL_MANUAL_HOLD_MINUTES = "easycontrol_manual_hold_minutes"
+CONF_BOILER_SETTLE_MINUTES = "boiler_settle_minutes"
+CONF_BOILER_MANUAL_HOLD_MINUTES = "boiler_manual_hold_minutes"
 
 # Alert thresholds.
 CONF_TRV_OFFLINE_MINUTES = "trv_offline_minutes"
@@ -42,3 +42,15 @@ CONF_TARGET_WINDOW_HOURS = "target_window_hours"
 CONF_OUTAGE_FAILURES = "outage_after_failures"
 CONF_SENSOR_STALE_HOURS = "sensor_stale_hours"
 CONF_BATTERY_LOW_PERCENT = "battery_low_percent"
+
+# Presence: heading home detected from the GPS position of tracked people.
+CONF_AUTO_ARRIVAL = "auto_arrival"
+DEFAULT_AUTO_ARRIVAL = True
+
+# Vacation from a calendar: events whose title or description has one of the keywords.
+CONF_VACATION_CALENDAR = "vacation_calendar"
+CONF_VACATION_KEYWORDS = "vacation_keywords"
+DEFAULT_VACATION_KEYWORDS = "vacation, holiday, vakantie"
+
+# TRVs on Zigbee2MQTT without an external-temperature number entity get it over MQTT.
+CONF_Z2M_BASE_TOPIC = "z2m_base_topic"

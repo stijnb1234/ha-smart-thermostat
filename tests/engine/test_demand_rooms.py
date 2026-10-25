@@ -1,6 +1,6 @@
+from custom_components.smart_heating.engine import decide
 from custom_components.smart_heating.engine.boiler import demand_rooms
 from tests.engine.test_boiler_call import make_input
-from custom_components.smart_heating.engine import decide
 
 
 def test_decision_lists_rooms_causing_demand(clock):

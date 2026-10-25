@@ -12,8 +12,8 @@ def test_empty_options_give_engine_defaults():
     cfg = build_engine_config((), {})
 
     assert cfg.alerts == AlertConfig()
-    assert cfg.easycontrol_debounce == EngineConfig(rooms=(), easycontrol_low=0, easycontrol_high=0).easycontrol_debounce
-    assert (cfg.easycontrol_low, cfg.easycontrol_high) == (15.0, 22.0)
+    assert cfg.boiler_debounce == EngineConfig(rooms=(), boiler_low=0, boiler_high=0).boiler_debounce
+    assert (cfg.boiler_low, cfg.boiler_high) == (15.0, 22.0)
     assert boost_duration({}) == timedelta(minutes=60)
     assert manual_override_duration({}) == timedelta(hours=2)
 
@@ -34,9 +34,9 @@ def test_options_override_boiler_and_alert_policy():
         },
     )
 
-    assert cfg.easycontrol_debounce == timedelta(minutes=10)
-    assert cfg.easycontrol_backoff_base == timedelta(minutes=2)
-    assert cfg.easycontrol_backoff_max == timedelta(minutes=60)
+    assert cfg.boiler_debounce == timedelta(minutes=10)
+    assert cfg.boiler_backoff_base == timedelta(minutes=2)
+    assert cfg.boiler_backoff_max == timedelta(minutes=60)
     assert cfg.demand_hysteresis == 0.5
     assert cfg.alerts == AlertConfig(
         trv_offline_after=timedelta(minutes=90),
@@ -55,11 +55,11 @@ def test_timed_request_durations_are_configurable():
 def test_manual_change_options():
     cfg = build_engine_config(
         (),
-        {"trv_settle_minutes": 15, "easycontrol_settle_minutes": 20, "easycontrol_manual_hold_minutes": 180},
+        {"trv_settle_minutes": 15, "boiler_settle_minutes": 20, "boiler_manual_hold_minutes": 180},
     )
 
     assert cfg.trv_settle == timedelta(minutes=15)
-    assert cfg.easycontrol_settle == timedelta(minutes=20)
-    assert cfg.easycontrol_manual_hold == timedelta(hours=3)
+    assert cfg.boiler_settle == timedelta(minutes=20)
+    assert cfg.boiler_manual_hold == timedelta(hours=3)
     default = build_engine_config((), {})
-    assert (default.trv_settle, default.easycontrol_manual_hold) == (timedelta(minutes=10), timedelta(hours=2))
+    assert (default.trv_settle, default.boiler_manual_hold) == (timedelta(minutes=10), timedelta(hours=2))

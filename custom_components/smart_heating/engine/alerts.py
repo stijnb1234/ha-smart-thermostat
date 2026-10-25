@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Mapping
 
 from .models import Alert, EngineInput
 
 
-def bosch_outage(inp: EngineInput) -> bool:
+def thermostat_outage(inp: EngineInput) -> bool:
     w = inp.last_write
     return (
         w is not None
@@ -22,9 +22,9 @@ def compute_alerts(inp: EngineInput) -> tuple[Alert, ...]:
     """Every alert whose condition holds right now (the active set)."""
     cfg = inp.config.alerts
     alerts: list[Alert] = []
-    if bosch_outage(inp):
+    if thermostat_outage(inp):
         alerts.append(
-            Alert("bosch_outage", None, "Bosch cloud unreachable; boiler call is throttled, TRVs keep following the schedule")
+            Alert("boiler_outage", None, "Boiler thermostat unreachable; boiler call is throttled, TRVs keep following the schedule")
         )
     for room in inp.config.rooms:
         name = room.name
@@ -51,12 +51,16 @@ def track_unmet(
     now: datetime,
     room_temps: Mapping[str, float],
     targets: Mapping[str, float],
+    margins: Mapping[str, float] | None = None,
 ) -> dict[str, datetime]:
-    """Since when each Room has continuously been below its target (caller keeps the result)."""
+    """Since when each Room has continuously been below its target by more than its margin
+    (caller keeps the result). Pass only targets the boiler is called for (see `wanted_targets`):
+    a Room left to drift at setback is not failing to reach anything."""
+    margins = margins or {}
     result: dict[str, datetime] = {}
     for room, temp in room_temps.items():
         target = targets.get(room)
-        if target is not None and temp < target:
+        if target is not None and temp < target - margins.get(room, 0.0):
             result[room] = previous.get(room, now)
     return result
 

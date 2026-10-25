@@ -65,7 +65,7 @@ def test_report_handles_missing_gas_or_zero_hdd():
 def test_alert_issues_list_recent_and_active_alerts_once():
     t = datetime(2026, 10, 12, 6, 0)
     low = Alert("low_battery", "Bed", "TRV battery in Bed is low")
-    outage = Alert("bosch_outage", None, "Bosch cloud unreachable")
+    outage = Alert("boiler_outage", None, "Boiler thermostat unreachable")
     old = Alert("trv_offline", "Old", "TRV in Old is offline")
     history = [(t - timedelta(days=30), old), (t + timedelta(hours=1), outage), (t + timedelta(days=1), low),
                (t + timedelta(days=2), low)]
@@ -73,7 +73,7 @@ def test_alert_issues_list_recent_and_active_alerts_once():
     lines = alert_issues(history, [low], since=t)
 
     assert len(lines) == 2
-    assert lines[0].startswith("The Bosch cloud cannot be reached") and lines[0].endswith("(resolved)")
+    assert lines[0].startswith("The boiler thermostat cannot be reached") and lines[0].endswith("(resolved)")
     assert lines[1] == "The battery of the radiator valve in Bed is low. Replace it soon. (still active)"
     nl = alert_issues(history, [low], since=t, lang="nl")
     assert nl[1].endswith("(nog actief)") and "Bed" in nl[1]

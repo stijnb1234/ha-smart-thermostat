@@ -1,9 +1,9 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 
 from custom_components.smart_heating.engine import (
+    Commands,
     EngineConfig,
     EngineInput,
-    Commands,
     RoomConfig,
     SensorConfig,
     SensorReading,
@@ -14,7 +14,7 @@ from custom_components.smart_heating.engine.insights import RoomInsights
 from custom_components.smart_heating.engine.sensors import select_temperature
 from custom_components.smart_heating.engine.trackers import CoastTracker, StallTracker
 
-T0 = datetime(2026, 1, 12, 12, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 1, 12, 12, 0, tzinfo=UTC)
 
 
 def minutes(n):
@@ -42,7 +42,7 @@ def test_noisy_room_learns_a_higher_threshold():
 def test_learned_threshold_beats_a_stale_stored_drop(clock):
     room = RoomConfig(name="bed", window_drop=1.5)
     inp = EngineInput(
-        config=EngineConfig(rooms=(room,), easycontrol_low=10.0, easycontrol_high=22.0),
+        config=EngineConfig(rooms=(room,), boiler_low=10.0, boiler_high=22.0),
         now=minutes(0), anyone_home=True, learned={}, last_commands=Commands(),
         trv_temps={"bed": SensorReading(18.0, minutes(0))},
         temp_history={"bed": (SensorReading(19.0, minutes(-8)), SensorReading(18.0, minutes(0)))},
@@ -74,7 +74,7 @@ def test_coast_tracker_ignores_calls_ended_by_something_else():
 
 def test_learned_coast_widens_the_demand_margin():
     room = RoomConfig(name="bed", comfort=19.5)
-    cfg = EngineConfig(rooms=(room,), easycontrol_low=10.0, easycontrol_high=22.0)
+    cfg = EngineConfig(rooms=(room,), boiler_low=10.0, boiler_high=22.0)
     temps, targets = {"bed": 19.0}, {"bed": 19.5}
     assert demand_rooms(cfg, targets, temps) == ("bed",)  # 0.5 below target, hysteresis 0.3
     assert demand_rooms(cfg, targets, temps, coast={"bed": 0.6}) == ()  # it will coast the rest
@@ -132,7 +132,7 @@ def test_progress_or_stopping_resets_the_stall():
 def test_stalled_room_raises_an_alert():
     room = RoomConfig(name="bed")
     inp = EngineInput(
-        config=EngineConfig(rooms=(room,), easycontrol_low=10.0, easycontrol_high=22.0),
+        config=EngineConfig(rooms=(room,), boiler_low=10.0, boiler_high=22.0),
         now=minutes(0), anyone_home=True, learned={}, last_commands=Commands(),
         trv_temps={"bed": SensorReading(18.0, minutes(0))}, stalled=frozenset({"bed"}),
     )
@@ -148,25 +148,25 @@ def _never_covered(room, at):
 def test_three_days_of_morning_boosts_become_a_suggestion():
     ins = RoomInsights()
     for day in (0, 1, 3):  # Mon, Tue, Thu
-        ins.record_event("study", datetime(2026, 1, 12 + day, 7, 10 + day, tzinfo=timezone.utc))
-    (s,) = ins.suggestions(datetime(2026, 1, 16, tzinfo=timezone.utc), _never_covered)
+        ins.record_event("study", datetime(2026, 1, 12 + day, 7, 10 + day, tzinfo=UTC))
+    (s,) = ins.suggestions(datetime(2026, 1, 16, tzinfo=UTC), _never_covered)
     assert (s.room, s.days, s.start, s.events) == ("study", (0, 1, 3), time(7, 10), 3)
 
 
 def test_two_days_or_covered_moments_are_not_suggested():
     ins = RoomInsights()
     for day in (0, 1):
-        ins.record_event("study", datetime(2026, 1, 12 + day, 7, 0, tzinfo=timezone.utc))
-    assert ins.suggestions(datetime(2026, 1, 16, tzinfo=timezone.utc), _never_covered) == []
-    ins.record_event("study", datetime(2026, 1, 14, 7, 0, tzinfo=timezone.utc))
-    assert ins.suggestions(datetime(2026, 1, 16, tzinfo=timezone.utc), lambda r, at: True) == []
+        ins.record_event("study", datetime(2026, 1, 12 + day, 7, 0, tzinfo=UTC))
+    assert ins.suggestions(datetime(2026, 1, 16, tzinfo=UTC), _never_covered) == []
+    ins.record_event("study", datetime(2026, 1, 14, 7, 0, tzinfo=UTC))
+    assert ins.suggestions(datetime(2026, 1, 16, tzinfo=UTC), lambda r, at: True) == []
 
 
 def test_old_events_expire():
     ins = RoomInsights()
     for day in (0, 1, 2):
-        ins.record_event("study", datetime(2026, 1, 12 + day, 7, 0, tzinfo=timezone.utc))
-    assert ins.suggestions(datetime(2026, 3, 1, tzinfo=timezone.utc), _never_covered) == []
+        ins.record_event("study", datetime(2026, 1, 12 + day, 7, 0, tzinfo=UTC))
+    assert ins.suggestions(datetime(2026, 3, 1, tzinfo=UTC), _never_covered) == []
 
 
 def test_insights_survive_a_roundtrip_and_bad_data_is_ignored():

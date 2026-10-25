@@ -18,21 +18,24 @@
           "add_room": "Add a room",
           "edit_room": "Edit a room",
           "remove_room": "Remove a room",
-          "heating_settings": "Boiler and presence settings",
+          "heating_settings": "Boiler, presence and vacation",
           "report_settings": "Gas report settings",
           "save": "Save and close",
           "advanced_settings": "Boiler call and alert thresholds"
         }
       },
       "heating_settings": {
-        "title": "Boiler and presence settings",
-        "description": "EasyControl climate entity (the boiler call), people who count as home, the low (no demand) and high (demand) EasyControl setpoints, Boost and Manual-room override durations, and the bedroom pre-bed warm-up window (used by the bedroom preset when a room is saved).",
+        "title": "Boiler, presence and vacation",
+        "description": "The thermostat that drives the boiler (Smart Heating raises its setpoint to call for heat), the people who count as home, how heading home is detected, the vacation calendar, the low (no demand) and high (demand) thermostat setpoints, Boost and Manual-room override durations, and the bedroom pre-bed warm-up window (used by the bedroom preset when a room is saved).",
         "data": {
-          "easycontrol_entity": "EasyControl climate entity",
+          "boiler_entity": "Boiler thermostat (climate entity that makes the boiler fire)",
           "persons": "Tracked people",
-          "arrival_entities": "Heading-home signal (optional; e.g. a 'near home' zone (active while someone is in it), or a switch that is on. Ends Away/Vacation early so the house warms before you arrive)",
-          "easycontrol_low": "EasyControl setpoint without demand",
-          "easycontrol_high": "EasyControl setpoint with demand",
+          "auto_arrival": "Detect heading home from the phones' GPS (no zone needed)",
+          "arrival_entities": "Extra heading-home signals (optional; e.g. a switch that is on, or a zone with someone in it)",
+          "vacation_calendar": "Vacation calendar (optional; matching events turn Vacation mode on automatically)",
+          "vacation_keywords": "Vacation keywords in the event title or description (comma-separated; * = every event)",
+          "boiler_low": "Boiler thermostat setpoint without demand",
+          "boiler_high": "Boiler thermostat setpoint with demand",
           "boost_minutes": "Boost duration",
           "manual_override_minutes": "Manual-room override duration",
           "pre_bed_start": "Bedroom pre-bed warm-up start",
@@ -110,20 +113,21 @@
       },
       "advanced_settings": {
         "title": "Boiler call and alert thresholds",
-        "description": "Debounce and backoff of EasyControl writes (Bosch cloud rate limit), demand hysteresis, and alert thresholds.",
+        "description": "Debounce and backoff of boiler thermostat writes (cloud rate limits), demand hysteresis, alert thresholds and the Zigbee2MQTT base topic.",
         "data": {
-          "debounce_minutes": "Debounce after an EasyControl change",
+          "debounce_minutes": "Debounce after a boiler thermostat change",
           "backoff_base_minutes": "First backoff after a failed write",
           "backoff_max_minutes": "Maximum backoff",
           "demand_hysteresis": "Demand hysteresis (room must be this far below target)",
           "trv_settle_minutes": "Radiator valve: wait this long after a write before checking it",
-          "easycontrol_settle_minutes": "EasyControl: wait this long after a write before treating a difference as a manual change",
-          "easycontrol_manual_hold_minutes": "EasyControl: respect a manual change for",
+          "boiler_settle_minutes": "Boiler thermostat: wait this long after a write before treating a difference as a manual change",
+          "boiler_manual_hold_minutes": "Boiler thermostat: respect a manual change for",
           "trv_offline_minutes": "TRV offline after",
           "target_window_hours": "Target not reached after",
-          "outage_after_failures": "Bosch outage after failed writes",
+          "outage_after_failures": "Boiler thermostat outage after failed writes",
           "sensor_stale_hours": "External sensor stale after",
-          "battery_low_percent": "Low battery below"
+          "battery_low_percent": "Low battery below",
+          "z2m_base_topic": "Zigbee2MQTT base topic (for TRVs that get the room temperature over MQTT)"
         }
       }
     },
@@ -139,6 +143,51 @@
         "working_room": "Working room (Mon/Wed/Fri 08:00-17:00)",
         "bedroom": "Bedroom (work hours plus pre-bed warm-up)"
       }
+    }
+  },
+  "services": {
+    "boost": {
+      "name": "Boost a room",
+      "description": "Heat a room to its comfort temperature now, for a while.",
+      "fields": {
+        "duration": {
+          "name": "Duration",
+          "description": "How long (default: the configured Boost duration)."
+        }
+      }
+    },
+    "cancel_boost": {
+      "name": "Cancel Boost",
+      "description": "Stop a running Boost; the room follows its schedule again."
+    },
+    "set_vacation": {
+      "name": "Set vacation",
+      "description": "Hold the house at frost protection from the start until you are back. Each room starts warming up in time for your return.",
+      "fields": {
+        "start": {
+          "name": "Start",
+          "description": "When you leave (default: now)."
+        },
+        "end": {
+          "name": "Back",
+          "description": "When you are home again."
+        }
+      }
+    },
+    "cancel_vacation": {
+      "name": "Cancel vacation",
+      "description": "End a manual vacation (calendar vacations follow the calendar)."
+    }
+  },
+  "exceptions": {
+    "return_in_past": {
+      "message": "The return moment must be in the future."
+    },
+    "return_before_start": {
+      "message": "The return moment must be after the start of the vacation."
+    },
+    "not_loaded": {
+      "message": "Smart Heating is not set up."
     }
   }
 }

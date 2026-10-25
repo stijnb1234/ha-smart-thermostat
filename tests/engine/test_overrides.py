@@ -17,8 +17,8 @@ LOW, HIGH = 10.0, 22.0
 def make_input(clock, temps=None, **kw) -> EngineInput:
     config = EngineConfig(
         rooms=(RoomConfig(name="bedroom", comfort=19.5, setback=16.0),),
-        easycontrol_low=LOW,
-        easycontrol_high=HIGH,
+        boiler_low=LOW,
+        boiler_high=HIGH,
     )
     temps = temps or {"bedroom": 18.0}
     return EngineInput(
@@ -37,7 +37,7 @@ def test_boost_raises_room_to_comfort_and_calls_for_heat(clock):
     d = decide(make_input(clock, boosts=boost))
 
     assert d.trv_setpoints["bedroom"] == 19.5
-    assert d.easycontrol_setpoint == HIGH
+    assert d.boiler_setpoint == HIGH
 
 
 def test_boost_expires_after_duration(clock):
@@ -47,7 +47,7 @@ def test_boost_expires_after_duration(clock):
     d = decide(make_input(clock, boosts=boost))
 
     assert d.trv_setpoints["bedroom"] == 16.0
-    assert d.easycontrol_setpoint == LOW
+    assert d.boiler_setpoint == LOW
 
 
 def test_boost_still_active_just_before_expiry(clock):
@@ -81,7 +81,7 @@ def test_manual_room_override_raises_boiler_call_without_room_demand(clock):
 
     d = decide(make_input(clock, temps={"bedroom": 18.0}, manual_overrides=manual))
 
-    assert d.easycontrol_setpoint == HIGH
+    assert d.boiler_setpoint == HIGH
     assert "hallway" not in d.trv_setpoints
 
 
@@ -91,4 +91,4 @@ def test_manual_room_override_expires_and_boiler_call_returns_low(clock):
 
     d = decide(make_input(clock, manual_overrides=manual))
 
-    assert d.easycontrol_setpoint == LOW
+    assert d.boiler_setpoint == LOW

@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import time, timedelta
 
 from custom_components.smart_heating.engine import (
     Commands,
@@ -8,7 +8,6 @@ from custom_components.smart_heating.engine import (
     ScheduleWindow,
     SensorReading,
     decide,
-    vacation_end,
 )
 
 ALL_DAYS = frozenset(range(7))
@@ -22,13 +21,13 @@ def make_input(clock, **overrides) -> EngineInput:
         frost_hold=12.0,
         schedule=(ScheduleWindow(ALL_DAYS, time(6), time(23)),),
     )
-    defaults = dict(
-        config=EngineConfig(rooms=(room,), easycontrol_low=10.0, easycontrol_high=22.0),
-        now=clock.now(),
-        anyone_home=True,
-        learned={},
-        last_commands=Commands(),
-    )
+    defaults = {
+        "config": EngineConfig(rooms=(room,), boiler_low=10.0, boiler_high=22.0),
+        "now": clock.now(),
+        "anyone_home": True,
+        "learned": {},
+        "last_commands": Commands(),
+    }
     defaults.update(overrides)
     return EngineInput(**defaults)
 
@@ -64,8 +63,8 @@ def test_prolonged_absence_threshold_is_configurable(clock):
     base = make_input(clock)
     config = EngineConfig(
         rooms=base.config.rooms,
-        easycontrol_low=10.0,
-        easycontrol_high=22.0,
+        boiler_low=10.0,
+        boiler_high=22.0,
         prolonged_absence=timedelta(hours=6),
     )
     away_since = clock.now() - timedelta(hours=7)
@@ -114,10 +113,26 @@ def test_vacation_over_resumes_schedule_even_before_arrival(clock):
     assert decision.trv_setpoints == {"living": 19.5}
 
 
-def test_vacation_ends_at_start_of_arrival_day():
-    start = datetime(2026, 1, 12, 15, 30, tzinfo=timezone.utc)
+def test_vacation_releases_each_room_its_lead_time_before_the_return(clock):
+    clock.advance(hours=9)  # 12:00, inside the comfort window
+    back = clock.now() + timedelta(hours=2)
+    learned = {"living": timedelta(hours=2, minutes=30)}
 
-    assert vacation_end(start, days=7) == datetime(2026, 1, 19, 0, 0, tzinfo=timezone.utc)
+    decision = decide(make_input(clock, vacation_until=back, learned=learned))
+
+    # Warming up from frost-hold takes 2.5 h: the room leaves Vacation now, warm on return.
+    assert decision.trv_setpoints == {"living": 19.5}
+    assert decision.reasons["living"] == "schedule"
+
+
+def test_vacation_holds_frost_until_the_release_moment(clock):
+    clock.advance(hours=9)
+    back = clock.now() + timedelta(hours=3)
+    learned = {"living": timedelta(hours=2, minutes=30)}
+
+    decision = decide(make_input(clock, vacation_until=back, learned=learned))
+
+    assert decision.trv_setpoints == {"living": 12.0}
 
 
 def test_vacation_keeps_boiler_call_low(clock):
@@ -128,7 +143,7 @@ def test_vacation_keeps_boiler_call_low(clock):
         make_input(clock, vacation_until=until, trv_temps={"living": SensorReading(13.0, clock.now())})
     )
 
-    assert decision.easycontrol_setpoint == 10.0
+    assert decision.boiler_setpoint == 10.0
 
 
 def test_absent_occupant_skips_schedule_but_boost_wins(clock):

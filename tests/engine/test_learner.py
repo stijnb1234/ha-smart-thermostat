@@ -84,3 +84,13 @@ def test_migrates_v1_state():
 def test_unknown_or_missing_state_gives_empty_learner():
     assert LeadTimeLearner.from_dict(None).to_dict()["rooms"] == {}
     assert LeadTimeLearner.from_dict({"version": 999}).to_dict()["rooms"] == {}
+
+
+def test_estimate_does_not_extrapolate_beyond_the_outdoor_range_seen():
+    learner = LeadTimeLearner()
+    # Warmer outside -> faster: 1 K/h at 0 degC up to 3 K/h at 8 degC.
+    for outdoor, rate in ((0.0, 1.0), (2.0, 1.5), (4.0, 2.0), (6.0, 2.5), (8.0, 3.0)):
+        learner.record_warmup("bed", outdoor, delta=rate, duration=timedelta(hours=1))
+
+    # At -20 degC a straight-line fit would predict a negative rate (max lead); held at 0 degC.
+    assert learner.estimate("bed", -20.0, 2.0) == learner.estimate("bed", 0.0, 2.0) == timedelta(hours=2)

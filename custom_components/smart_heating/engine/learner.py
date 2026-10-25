@@ -8,8 +8,9 @@ most recent samples; lead time = temperature delta / rate.
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Mapping
 from datetime import timedelta
-from typing import Any, Mapping
+from typing import Any
 
 SCHEMA_VERSION = 2
 MIN_SAMPLES = 5
@@ -94,6 +95,8 @@ class LeadTimeLearner:
 
 
 def _predict_rate(samples: deque[tuple[float, float]], outdoor: float) -> float:
+    """Straight-line fit, read off within the outdoor range seen: no wild extrapolation."""
+    outdoor = min(max(outdoor, min(x for x, _ in samples)), max(x for x, _ in samples))
     n = len(samples)
     mean_x = sum(x for x, _ in samples) / n
     mean_y = sum(y for _, y in samples) / n

@@ -7,22 +7,19 @@ generated config can reference them. No Home Assistant imports.
 from __future__ import annotations
 
 import json
-import re
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from .const import DOMAIN
 from .i18n import DEFAULT_LANGUAGE, help_cards, tr
-from .gather import battery_entity, heating_demand_entity, valve_position_entity
+from .rooms import room_id, slug
+from .trv_devices import fallback_trv
 
 OPTIONS_LINK = f"/config/integrations/integration/{DOMAIN}"
 
 
-def slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
-
-
 def entity_id(domain: str, room: str | None, key: str | None = None) -> str:
-    """Object id: smart_heating_<room>[_<key>]. Room-less ids are system-wide."""
+    """Object id: smart_heating_<room id>[_<key>]. Room-less ids are system-wide."""
     parts = [DOMAIN]
     if room:
         parts.append(slug(room))
@@ -65,18 +62,18 @@ def _section(*cards: dict[str, Any]) -> dict[str, Any]:
 
 
 def _room_section(room: Mapping[str, Any], lang: str) -> dict[str, Any]:
-    name = room["name"]
+    name, rid = room["name"], room_id(room)
     cards: list[dict[str, Any]] = [
         _heading(name, "mdi:radiator"),
         {
             "type": "entities",
             "entities": [
-                {"entity": entity_id("climate", name)},
-                {"entity": entity_id("sensor", name, "summary"), "name": tr(lang, "dash.right_now")},
-                {"entity": entity_id("sensor", name, "next_change"), "name": tr(lang, "dash.next_change")},
-                {"entity": entity_id("sensor", name, "lead_time"), "name": tr(lang, "dash.lead_time")},
-                {"entity": entity_id("button", name, "boost"), "name": tr(lang, "dash.boost")},
-                {"entity": entity_id("button", name, "cancel_boost"), "name": tr(lang, "dash.cancel_boost")},
+                {"entity": entity_id("climate", rid)},
+                {"entity": entity_id("sensor", rid, "summary"), "name": tr(lang, "dash.right_now")},
+                {"entity": entity_id("sensor", rid, "next_change"), "name": tr(lang, "dash.next_change")},
+                {"entity": entity_id("sensor", rid, "lead_time"), "name": tr(lang, "dash.lead_time")},
+                {"entity": entity_id("button", rid, "boost"), "name": tr(lang, "dash.boost")},
+                {"entity": entity_id("button", rid, "cancel_boost"), "name": tr(lang, "dash.cancel_boost")},
             ],
         },
         # Home Assistant draws a climate entity as current temperature, target and heating.
@@ -84,22 +81,21 @@ def _room_section(room: Mapping[str, Any], lang: str) -> dict[str, Any]:
             "type": "history-graph",
             "title": tr(lang, "dash.last_24h"),
             "hours_to_show": 24,
-            "entities": [{"entity": entity_id("climate", name)}],
+            "entities": [{"entity": entity_id("climate", rid)}],
         },
     ]
     trv = room.get("trv_entity")
     if trv:
-        cards.append(
-            {
-                "type": "entities",
-                "title": tr(lang, "dash.radiator_valve"),
-                "entities": [
-                    {"entity": battery_entity(trv), "name": tr(lang, "dash.battery")},
-                    {"entity": valve_position_entity(trv), "name": tr(lang, "dash.valve_opening")},
-                    {"entity": heating_demand_entity(trv), "name": tr(lang, "dash.valve_demand")},
-                ],
-            }
-        )
+        # Entities found on the TRV's device at setup (see trv_devices), else the Z2M names.
+        guess = fallback_trv(trv)
+        rows = [
+            (room.get("trv_battery", guess.battery), "dash.battery"),
+            (room.get("trv_valve_position", guess.valve_position), "dash.valve_opening"),
+            (room.get("trv_heating_demand", guess.heating_demand), "dash.valve_demand"),
+        ]
+        entities = [{"entity": e, "name": tr(lang, key)} for e, key in rows if e]
+        if entities:
+            cards.append({"type": "entities", "title": tr(lang, "dash.radiator_valve"), "entities": entities})
     return _section(*cards)
 
 
@@ -116,8 +112,8 @@ def _rooms_table(rooms: list[dict[str, Any]], lang: str) -> str:
         "|---|---|---|---|",
     ]
     for r in rooms:
-        climate = entity_id("climate", r["name"])
-        summary = entity_id("sensor", r["name"], "summary")
+        climate = entity_id("climate", room_id(r))
+        summary = entity_id("sensor", room_id(r), "summary")
         lines.append(
             f"| **{r['name']}** | {temp(climate, 'current_temperature')} "
             f"| {temp(climate, 'temperature')} "
@@ -150,11 +146,11 @@ def _overview_view(rooms: list[dict[str, Any]], lang: str) -> dict[str, Any]:
     for r in rooms:
         boosts += [
             {
-                "entity": entity_id("button", r["name"], "boost"),
+                "entity": entity_id("button", room_id(r), "boost"),
                 "name": f"{r['name']}: {tr(lang, 'dash.boost')}",
             },
             {
-                "entity": entity_id("button", r["name"], "cancel_boost"),
+                "entity": entity_id("button", room_id(r), "cancel_boost"),
                 "name": f"{r['name']}: {tr(lang, 'dash.cancel_boost')}",
             },
         ]
@@ -163,8 +159,8 @@ def _overview_view(rooms: list[dict[str, Any]], lang: str) -> dict[str, Any]:
         {
             "type": "entities",
             "entities": [
+                {"entity": entity_id("datetime", None, "vacation_return")},
                 {"entity": entity_id("switch", None, "vacation_mode")},
-                {"entity": entity_id("number", None, "vacation_days")},
                 {"entity": entity_id("button", None, "manual_room_override")},
                 {"entity": entity_id("button", None, "cancel_manual_room_override")},
             ],
@@ -256,7 +252,8 @@ def _help_view(lang: str) -> dict[str, Any]:
 def build_dashboard(
     rooms: Iterable[str | Mapping[str, Any]], lang: str = DEFAULT_LANGUAGE
 ) -> dict[str, Any]:
-    """Rooms are names or room dicts (name, optional trv_entity for the valve card)."""
+    """Rooms are names or room dicts (name, id, optional trv_entity and the TRV's resolved
+    trv_battery / trv_valve_position / trv_heating_demand entities for the valve card)."""
     room_list = [_normalize(r) for r in rooms]
     return {
         "title": tr(lang, "dash.title"),

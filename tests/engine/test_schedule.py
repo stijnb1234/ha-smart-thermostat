@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import UTC, time
 
 from custom_components.smart_heating.engine import (
     Commands,
@@ -14,13 +14,13 @@ MON_WED_FRI = frozenset({0, 2, 4})
 
 
 def make_input(clock, rooms, **overrides) -> EngineInput:
-    defaults = dict(
-        config=EngineConfig(rooms=tuple(rooms), easycontrol_low=10.0, easycontrol_high=22.0),
-        now=clock.now(),
-        anyone_home=True,
-        learned={},
-        last_commands=Commands(),
-    )
+    defaults = {
+        "config": EngineConfig(rooms=tuple(rooms), boiler_low=10.0, boiler_high=22.0),
+        "now": clock.now(),
+        "anyone_home": True,
+        "learned": {},
+        "last_commands": Commands(),
+    }
     defaults.update(overrides)
     return EngineInput(**defaults)
 
@@ -125,4 +125,4 @@ def test_schedule_uses_the_wall_clock_of_now_not_utc():
     local = timezone(timedelta(hours=2))
     # 07:30 local is 05:30 UTC: outside the window either way; 08:30 local is 06:30 UTC.
     assert in_window(room, datetime(2026, 10, 17, 8, 30, tzinfo=local))
-    assert not in_window(room, datetime(2026, 10, 17, 8, 30, tzinfo=local).astimezone(timezone.utc))
+    assert not in_window(room, datetime(2026, 10, 17, 8, 30, tzinfo=local).astimezone(UTC))

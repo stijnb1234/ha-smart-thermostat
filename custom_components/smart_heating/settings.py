@@ -5,29 +5,30 @@ Defaults come from the engine's own dataclasses, so they live in one place.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import timedelta
-from typing import Any, Mapping
+from typing import Any
 
 from .const import (
     CONF_BACKOFF_BASE_MINUTES,
     CONF_BACKOFF_MAX_MINUTES,
     CONF_BATTERY_LOW_PERCENT,
+    CONF_BOILER_HIGH,
+    CONF_BOILER_LOW,
+    CONF_BOILER_MANUAL_HOLD_MINUTES,
+    CONF_BOILER_SETTLE_MINUTES,
     CONF_BOOST_MINUTES,
     CONF_DEBOUNCE_MINUTES,
     CONF_DEMAND_HYSTERESIS,
-    CONF_EASYCONTROL_MANUAL_HOLD_MINUTES,
-    CONF_EASYCONTROL_SETTLE_MINUTES,
-    CONF_TRV_SETTLE_MINUTES,
-    CONF_EASYCONTROL_HIGH,
-    CONF_EASYCONTROL_LOW,
     CONF_MANUAL_OVERRIDE_MINUTES,
     CONF_OUTAGE_FAILURES,
     CONF_SENSOR_STALE_HOURS,
     CONF_TARGET_WINDOW_HOURS,
     CONF_TRV_OFFLINE_MINUTES,
+    CONF_TRV_SETTLE_MINUTES,
+    DEFAULT_BOILER_HIGH,
+    DEFAULT_BOILER_LOW,
     DEFAULT_BOOST_MINUTES,
-    DEFAULT_EASYCONTROL_HIGH,
-    DEFAULT_EASYCONTROL_LOW,
     DEFAULT_MANUAL_OVERRIDE_MINUTES,
 )
 from .engine import AlertConfig, EngineConfig, RoomConfig
@@ -44,23 +45,23 @@ def _hours(options: Mapping[str, Any], key: str, default: timedelta) -> timedelt
 
 
 def build_engine_config(rooms: tuple[RoomConfig, ...], options: Mapping[str, Any]) -> EngineConfig:
-    base, alerts = EngineConfig(rooms=(), easycontrol_low=0, easycontrol_high=0), AlertConfig()
+    base, alerts = EngineConfig(rooms=(), boiler_low=0, boiler_high=0), AlertConfig()
     return EngineConfig(
         rooms=rooms,
-        easycontrol_low=float(options.get(CONF_EASYCONTROL_LOW, DEFAULT_EASYCONTROL_LOW)),
-        easycontrol_high=float(options.get(CONF_EASYCONTROL_HIGH, DEFAULT_EASYCONTROL_HIGH)),
-        easycontrol_debounce=_minutes(options, CONF_DEBOUNCE_MINUTES, base.easycontrol_debounce),
-        easycontrol_backoff_base=_minutes(
-            options, CONF_BACKOFF_BASE_MINUTES, base.easycontrol_backoff_base
+        boiler_low=float(options.get(CONF_BOILER_LOW, DEFAULT_BOILER_LOW)),
+        boiler_high=float(options.get(CONF_BOILER_HIGH, DEFAULT_BOILER_HIGH)),
+        boiler_debounce=_minutes(options, CONF_DEBOUNCE_MINUTES, base.boiler_debounce),
+        boiler_backoff_base=_minutes(
+            options, CONF_BACKOFF_BASE_MINUTES, base.boiler_backoff_base
         ),
-        easycontrol_backoff_max=_minutes(
-            options, CONF_BACKOFF_MAX_MINUTES, base.easycontrol_backoff_max
+        boiler_backoff_max=_minutes(
+            options, CONF_BACKOFF_MAX_MINUTES, base.boiler_backoff_max
         ),
-        easycontrol_settle=_minutes(
-            options, CONF_EASYCONTROL_SETTLE_MINUTES, base.easycontrol_settle
+        boiler_settle=_minutes(
+            options, CONF_BOILER_SETTLE_MINUTES, base.boiler_settle
         ),
-        easycontrol_manual_hold=_minutes(
-            options, CONF_EASYCONTROL_MANUAL_HOLD_MINUTES, base.easycontrol_manual_hold
+        boiler_manual_hold=_minutes(
+            options, CONF_BOILER_MANUAL_HOLD_MINUTES, base.boiler_manual_hold
         ),
         trv_settle=_minutes(options, CONF_TRV_SETTLE_MINUTES, base.trv_settle),
         demand_hysteresis=float(options.get(CONF_DEMAND_HYSTERESIS, base.demand_hysteresis)),

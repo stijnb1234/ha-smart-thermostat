@@ -1,4 +1,5 @@
-"""Thin TRV adapter: writes engine setpoints to Zigbee2MQTT climate entities.
+"""Thin TRV adapter: writes engine setpoints to any climate entity and pushes the external
+room temperature where the TRV takes one (see trv_devices.py).
 
 Writes only when the desired setpoint differs from the last one written, so a
 schedule transition results in exactly one write per Room. A failing write is
@@ -9,8 +10,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Collection, Mapping
+from collections.abc import Collection, Mapping
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+from .apply import call_service
+from .trv_devices import TrvDevice
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -24,10 +29,11 @@ MODE_FIX_GIVE_UP_AFTER = timedelta(minutes=10)
 
 
 class TrvAdapter:
-    def __init__(self, hass: HomeAssistant, entities: Mapping[str, str]) -> None:
-        """entities maps Room name to the Z2M climate entity id."""
+    def __init__(self, hass: HomeAssistant, devices: Mapping[str, TrvDevice]) -> None:
+        """devices maps Room name to what its TRV offers."""
         self._hass = hass
-        self._entities = dict(entities)
+        self._devices = dict(devices)
+        self._entities = {room: d.climate for room, d in devices.items()}
         self._written: dict[str, float] = {}
         self._written_at: dict[str, datetime] = {}
         self._previous: dict[str, float] = {}
@@ -48,7 +54,7 @@ class TrvAdapter:
 
     def stuck_off(self) -> frozenset[str]:
         """Rooms whose TRV stayed switched off despite repeated attempts to turn it on."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return frozenset(
             room
             for room, since in self._off_since.items()
@@ -58,7 +64,7 @@ class TrvAdapter:
 
     async def async_fix_modes(self) -> None:
         """Turn a TRV that is switched off back on (heat, else auto); it ignores setpoints when off."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for room, entity_id in self._entities.items():
             state = self._hass.states.get(entity_id)
             if state is None or state.state != "off":
@@ -78,13 +84,10 @@ class TrvAdapter:
             self._mode_attempt_at[room] = now
             _LOGGER.info("TRV %s is switched off; setting mode to %s", entity_id, mode)
             try:
-                await self._hass.services.async_call(
-                    "climate",
-                    "set_hvac_mode",
-                    {"entity_id": entity_id, "hvac_mode": mode},
-                    blocking=True,
+                await call_service(
+                    self._hass, "climate", "set_hvac_mode", {"entity_id": entity_id, "hvac_mode": mode}
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Setting %s to %s failed", entity_id, mode)
 
     @property
@@ -123,13 +126,10 @@ class TrvAdapter:
                 continue
             before = self.observed(room)
             try:
-                await self._hass.services.async_call(
-                    "climate",
-                    "set_temperature",
-                    {"entity_id": entity_id, "temperature": target},
-                    blocking=True,
+                await call_service(
+                    self._hass, "climate", "set_temperature", {"entity_id": entity_id, "temperature": target}
                 )
-            except Exception:  # noqa: BLE001 - service errors are not typed
+            except Exception:  # service errors are not typed; TimeoutError when it hangs
                 _LOGGER.exception("Setting %s to %s failed; retrying next cycle", entity_id, target)
                 continue
             if not unchanged:
@@ -140,34 +140,34 @@ class TrvAdapter:
                     self._previous[room] = prior
             _LOGGER.info("TRV %s set to %s (was %s)", entity_id, target, before)
             self._written[room] = target
-            self._written_at[room] = datetime.now(timezone.utc)
+            self._written_at[room] = datetime.now(UTC)
 
-    async def async_push_external_temperature(
-        self, pushes: Mapping[str, float], z2m_names: Mapping[str, str]
-    ) -> set[str]:
-        """Publish external room temperature to zigbee2mqtt/<name>/set.
+    def _mqtt_available(self) -> bool:
+        has_service = getattr(self._hass.services, "has_service", None)
+        return has_service is None or has_service("mqtt", "publish")
 
-        z2m_names maps Room name to the Z2M friendly name. Delivery to the
-        sleepy device may take minutes (ADR-0003), so this is fire and forget.
-        Returns the Rooms whose push succeeded (failed ones are retried next cycle).
+    async def async_push_external_temperature(self, pushes: Mapping[str, float]) -> set[str]:
+        """Give each TRV the external room temperature: through its number entity, else over
+        Zigbee2MQTT (delivery to the sleepy device may take minutes, ADR-0003, so this is fire
+        and forget). Returns the Rooms done; failed ones are retried next cycle. A TRV that takes
+        no external temperature counts as done: there is nothing to retry.
         """
-        pushed: set[str] = set()
+        done: set[str] = set()
         for room, value in pushes.items():
-            name = z2m_names.get(room)
-            if name is None:
-                continue
+            device = self._devices.get(room)
             try:
-                await self._hass.services.async_call(
-                    "mqtt",
-                    "publish",
-                    {
-                        "topic": f"zigbee2mqtt/{name}/set",
-                        "payload": json.dumps({"external_temperature": value}),
-                    },
-                    blocking=True,
-                )
-            except Exception:  # noqa: BLE001
+                if device is not None and device.external_number is not None:
+                    await call_service(
+                        self._hass, "number", "set_value",
+                        {"entity_id": device.external_number, "value": round(value, 1)},
+                    )
+                elif device is not None and device.mqtt_topic is not None and self._mqtt_available():
+                    await call_service(
+                        self._hass, "mqtt", "publish",
+                        {"topic": device.mqtt_topic, "payload": json.dumps({"external_temperature": value})},
+                    )
+            except Exception:
                 _LOGGER.exception("Pushing external temperature for %s failed", room)
                 continue
-            pushed.add(room)
-        return pushed
+            done.add(room)
+        return done

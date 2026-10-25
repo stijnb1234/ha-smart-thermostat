@@ -8,8 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from .const import CONF_GAS_ENTITY, CONF_HDD_BASE, CONF_OUTDOOR_ENTITY, CONF_ROOMS
-from .const import DOMAIN
+from .const import CONF_GAS_ENTITY, CONF_HDD_BASE, CONF_OUTDOOR_ENTITY, CONF_ROOMS, DOMAIN
 from .i18n import pick_language, tr
 from .report import DEFAULT_HDD_BASE, alert_issues, build_report, heated_hours, suggestion_lines
 
@@ -29,7 +28,8 @@ async def _daily_stats(hass, entity_id, start, end, stat_type):
     result = await get_instance(hass).async_add_executor_job(
         statistics_during_period, hass, start, end, {entity_id}, "day", None, {stat_type}
     )
-    return [row[stat_type] for row in result.get(entity_id, []) if row.get(stat_type) is not None]
+    rows: list[dict] = [dict(row) for row in result.get(entity_id, [])]
+    return [row[stat_type] for row in rows if row.get(stat_type) is not None]
 
 
 async def _gas_and_temps(hass, gas, outdoor, start, end):
@@ -43,20 +43,26 @@ async def _room_hours_and_issues(hass, rooms, start, end):
 
     hours: dict[str, float] = {}
     issues: list[str] = []
-    for room in rooms:
-        entity = room.get("trv_entity")
-        if not entity:  # Room without a TRV (manual): no history to report
-            continue
-        states = await get_instance(hass).async_add_executor_job(
-            history.state_changes_during_period, hass, start, end, entity
+    entities = {room["name"]: room["trv_entity"] for room in rooms if room.get("trv_entity")}
+    if not entities:  # Rooms without a TRV (manual, floor heating): no history to report
+        return hours, issues
+    # hvac_action is an attribute: attribute-only changes must be included, which
+    # state_changes_during_period leaves out (it only returns changes of the state itself).
+    found = await get_instance(hass).async_add_executor_job(
+        lambda: history.get_significant_states(
+            hass,
+            start,
+            end,
+            list(entities.values()),
+            significant_changes_only=False,
         )
-        states = states.get(entity, [])
-        samples = [
-            (s.last_changed, s.attributes.get("hvac_action") == "heating") for s in states
-        ]
-        hours[room["name"]] = heated_hours(samples, end)
+    )
+    for name, entity in entities.items():
+        states = [s for s in found.get(entity, []) if not isinstance(s, dict)]
+        samples = [(max(s.last_updated, start), s.attributes.get("hvac_action") == "heating") for s in states]
+        hours[name] = heated_hours(samples, end)
         if any(s.state == "unavailable" for s in states):
-            issues.append(f"{room['name']}: TRV was unavailable this week")
+            issues.append(f"{name}: TRV was unavailable this week")
     return hours, issues
 
 

@@ -50,14 +50,13 @@ def register(hass: HomeAssistant) -> bool:
             "lovelace",
             frontend_url_path=URL_PATH,
             require_admin=False,
-            show_in_sidebar=True,
             sidebar_title=TITLE,
             sidebar_icon=ICON,
             config={"mode": "yaml"},
             update=False,
         )
         return True
-    except Exception:  # noqa: BLE001 - internal API, must never break setup
+    except Exception:
         _LOGGER.warning("Could not register the Smart Heating dashboard", exc_info=True)
         return False
 
@@ -71,5 +70,5 @@ def unregister(hass: HomeAssistant) -> None:
         data = hass.data.get(LOVELACE_DATA)
         if data is not None and data.dashboards.pop(URL_PATH, None) is not None:
             frontend.async_remove_panel(hass, URL_PATH)
-    except Exception:  # noqa: BLE001
+    except Exception:
         _LOGGER.debug("Could not unregister the Smart Heating dashboard", exc_info=True)

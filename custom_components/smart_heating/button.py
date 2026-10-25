@@ -7,6 +7,7 @@ which decides when they expire.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.components.button import ButtonEntity
@@ -14,7 +15,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .dashboard import entity_id
-from .engine import Boost, ManualRoomOverride
+from .engine import Boost, ManualRoomOverride, RoomConfig
 from .i18n import tr
 
 if TYPE_CHECKING:
@@ -28,29 +29,27 @@ MANUAL_OVERRIDE_KEY = "manual_room"
 class BoostButton(ButtonEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, entry_id: str, room: str, state: dict) -> None:
-        self._room, self._state = room, state
-        self._attr_name = tr(state["lang"], "entity.boost", room=room)
-        self._attr_unique_id = f"{entry_id}_boost_{room}"
-        self.entity_id = entity_id("button", room, "boost")
+    def __init__(self, entry_id: str, room: RoomConfig, state: dict) -> None:
+        self._room, self._state = room.name, state
+        self._attr_name = tr(state["lang"], "entity.boost", room=room.name)
+        self._attr_unique_id = f"{entry_id}_boost_{room.id}"
+        self.entity_id = entity_id("button", room.id, "boost")
 
     async def async_press(self) -> None:
-        self._state["boosts"][self._room] = Boost(dt_util.utcnow(), self._state["boost_duration"])
-        await _refresh(self._state)
+        await start_boost(self._state, self._room, self._state["boost_duration"])
 
 
 class CancelBoostButton(ButtonEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, entry_id: str, room: str, state: dict) -> None:
-        self._room, self._state = room, state
-        self._attr_name = tr(state["lang"], "entity.cancel_boost", room=room)
-        self._attr_unique_id = f"{entry_id}_cancel_boost_{room}"
-        self.entity_id = entity_id("button", room, "cancel_boost")
+    def __init__(self, entry_id: str, room: RoomConfig, state: dict) -> None:
+        self._room, self._state = room.name, state
+        self._attr_name = tr(state["lang"], "entity.cancel_boost", room=room.name)
+        self._attr_unique_id = f"{entry_id}_cancel_boost_{room.id}"
+        self.entity_id = entity_id("button", room.id, "cancel_boost")
 
     async def async_press(self) -> None:
-        self._state["boosts"].pop(self._room, None)
-        await _refresh(self._state)
+        await cancel_boost(self._state, self._room)
 
 
 class CancelManualRoomOverrideButton(ButtonEntity):
@@ -83,6 +82,17 @@ class ManualRoomOverrideButton(ButtonEntity):
         await _refresh(self._state)
 
 
+async def start_boost(state: dict, room: str, duration: timedelta) -> None:
+    """Heat `room` to comfort for `duration` from now (buttons and the boost service)."""
+    state["boosts"][room] = Boost(dt_util.utcnow(), duration)
+    await _refresh(state)
+
+
+async def cancel_boost(state: dict, room: str) -> None:
+    state["boosts"].pop(room, None)
+    await _refresh(state)
+
+
 async def _refresh(state: dict) -> None:
     """Persist the request (survives reloads), then re-run the control cycle now."""
     await state["override_store"].async_save(state["boosts"], state["manual_overrides"])
@@ -94,8 +104,8 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     state = hass.data[DOMAIN][entry.entry_id]
-    entities = [BoostButton(entry.entry_id, r.name, state) for r in state["rooms"]]
-    entities += [CancelBoostButton(entry.entry_id, r.name, state) for r in state["rooms"]]
+    entities: list[ButtonEntity] = [BoostButton(entry.entry_id, r, state) for r in state["rooms"]]
+    entities += [CancelBoostButton(entry.entry_id, r, state) for r in state["rooms"]]
     entities.append(ManualRoomOverrideButton(entry.entry_id, state))
     entities.append(CancelManualRoomOverrideButton(entry.entry_id, state))
     async_add_entities(entities)

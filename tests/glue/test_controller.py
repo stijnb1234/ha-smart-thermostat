@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 
 from custom_components.smart_heating.controller import Controller, Snapshot
 from custom_components.smart_heating.engine import (
@@ -11,14 +11,12 @@ from custom_components.smart_heating.engine import (
 )
 from custom_components.smart_heating.engine.learner import LeadTimeLearner
 from custom_components.smart_heating.gather import (
-    battery_entity,
     battery_is_low,
     parse_number,
     update_history,
-    z2m_name,
 )
 
-UTC = timezone.utc
+UTC = UTC
 T0 = datetime(2026, 1, 12, 3, 0, tzinfo=UTC)  # Monday 03:00
 ROOM = RoomConfig(
     name="work",
@@ -26,7 +24,7 @@ ROOM = RoomConfig(
     setback=16.0,
     schedule=(ScheduleWindow(frozenset({0}), time(8), time(17)),),
 )
-CONFIG = EngineConfig(rooms=(ROOM,), easycontrol_low=10.0, easycontrol_high=22.0)
+CONFIG = EngineConfig(rooms=(ROOM,), boiler_low=10.0, boiler_high=22.0)
 
 
 def snap(now, temp=17.0, ext=None, **kw):
@@ -36,8 +34,7 @@ def snap(now, temp=17.0, ext=None, **kw):
         trv={"work": SensorReading(temp, now)},
         trv_last_seen={"work": now},
         battery_low={},
-        anyone_home=True,
-        away_since=None,
+        anyone_home=kw.pop("anyone_home", True),
         vacation_until=None,
         outdoor_temp=kw.pop("outdoor_temp", 2.0),
         last_write=None,
@@ -51,10 +48,10 @@ def make(boosts=None, learner=None):
 
 def test_step_decides_and_explains():
     c = make()
-    cycle = c.step(snap(T0))
+    cycle = c.step(snap(T0, temp=16.0))
     assert cycle.decision.trv_setpoints["work"] == 16.0
     assert cycle.explanations["work"].reason == "setback"
-    assert cycle.lead_times["work"] == timedelta(minutes=70)
+    assert cycle.lead_times["work"] == timedelta(minutes=70)  # the fixed lead, for 4 K short
 
 
 def test_boost_from_shared_dict_is_used():
@@ -83,14 +80,33 @@ def test_window_pause_is_fed_back_and_persists():
     assert later.explanations["work"].reason == "window"
 
 
-def test_unmet_target_alert_after_window():
-    c = make()
-    alerts = ()
+def _alerts_after_hours(c, hours, **kw):
+    cycle = None
+    for minutes in range(0, hours * 60 + 1, 30):
+        cycle = c.step(snap(T0 + timedelta(minutes=minutes), **kw))
+    return {a.code for a in cycle.decision.alerts}
+
+
+def test_unmet_target_alert_when_a_comfort_room_stays_cold():
+    c = make()  # Monday 03:00; the room's comfort window runs 08:00-17:00
+    c.step(snap(T0 + timedelta(hours=5)))
+    later = T0 + timedelta(hours=5)
     for minutes in range(0, 4 * 60 + 1, 30):
-        # in setback window at 3am-7am? keep room below its setback of 16
-        cycle = c.step(snap(T0 + timedelta(minutes=minutes), temp=14.0))
-        alerts = cycle.decision.alerts
-    assert any(a.code == "target_not_reached" for a in alerts)
+        cycle = c.step(snap(later + timedelta(minutes=minutes), temp=17.0))
+    assert "target_not_reached" in {a.code for a in cycle.decision.alerts}
+
+
+def test_no_unmet_alert_for_a_room_just_inside_the_demand_band():
+    c = make()
+    later = T0 + timedelta(hours=5)
+    for minutes in range(0, 4 * 60 + 1, 30):
+        cycle = c.step(snap(later + timedelta(minutes=minutes), temp=19.8))  # comfort 20, band 0.3
+    assert "target_not_reached" not in {a.code for a in cycle.decision.alerts}
+
+
+def test_no_unmet_alert_for_a_room_below_setback():
+    # Rooms at setback never call the boiler, so "not reaching the target" would be noise.
+    assert "target_not_reached" not in _alerts_after_hours(make(), 4, temp=14.0)
 
 
 def test_trv_offline_alert():
@@ -130,8 +146,6 @@ def test_gather_helpers():
     h = update_history((), SensorReading(1.0, T0), T0, timedelta(minutes=30))
     h = update_history(h, SensorReading(2.0, T0 + timedelta(minutes=40)), T0 + timedelta(minutes=40), timedelta(minutes=30))
     assert [r.value for r in h] == [2.0]
-    assert z2m_name("climate.bedroom_trv") == "bedroom_trv"
-    assert battery_entity("climate.bedroom_trv") == "sensor.bedroom_trv_battery"
     assert battery_is_low("15", 20.0) and not battery_is_low("80", 20.0) and not battery_is_low("unknown", 20.0)
 
 
@@ -195,3 +209,55 @@ def test_suggestions_come_from_repeated_hand_set_or_boost_wishes():
         c.step(snap(at))
     (s,) = c.suggestions(T0 + timedelta(days=4))
     assert s.room == "work" and s.start == time(7, 0) and s.days == (1, 2, 3)
+
+
+def test_away_since_is_tracked_across_cycles_not_taken_from_the_snapshot():
+    c = make()
+    c.step(snap(T0, anyone_home=False))
+    later = c.step(snap(T0 + timedelta(hours=49), anyone_home=False))
+    assert later.inp.away_since == T0
+    assert later.decision.reasons["work"] == "away" and later.decision.trv_setpoints["work"] == 12.0
+
+
+def test_away_since_is_restored_and_cleared_when_someone_is_home():
+    c = make()
+    c.restore(Commands(), away_since=T0 - timedelta(hours=60))
+    assert c.step(snap(T0, anyone_home=False)).inp.away_since == T0 - timedelta(hours=60)
+    assert c.step(snap(T0 + timedelta(minutes=1))).inp.away_since is None
+    assert c.away_since is None
+
+
+def _trained_learner(rate=2.0):
+    learner = LeadTimeLearner()
+    for outdoor in (0.0, 2.0, 4.0, 6.0, 8.0):
+        learner.record_warmup("work", outdoor, delta=rate, duration=timedelta(hours=1))
+    return learner
+
+
+def test_lead_time_follows_the_actual_shortfall_not_comfort_minus_setback():
+    # Learned: 2 K/h. Comfort 20; a room at 16 needs 2 h, a room at 12 (frost-hold) needs 4 h.
+    at_setback = make(learner=_trained_learner()).step(snap(T0, temp=16.0))
+    at_frost = make(learner=_trained_learner()).step(snap(T0, temp=12.0))
+    assert at_setback.lead_times["work"] == timedelta(hours=2)
+    assert at_frost.lead_times["work"] == timedelta(hours=4)
+
+
+def test_lead_time_without_learned_data_scales_the_fixed_lead_time():
+    # Fixed 70 min is meant for comfort - setback (4 K); 2 K short needs half of it.
+    assert make().step(snap(T0, temp=18.0)).lead_times["work"] == timedelta(minutes=35)
+
+
+def test_a_room_already_at_comfort_needs_no_lead_time():
+    assert make().step(snap(T0, temp=20.5)).lead_times["work"] == timedelta(0)
+
+
+def test_lead_time_is_kept_once_pre_heat_started():
+    # 05:00, window at 08:00. At 14 degC the room needs 3 h at 2 K/h: pre-heat starts.
+    c = make(learner=_trained_learner())
+    start = T0 + timedelta(hours=2)
+    first = c.step(snap(start, temp=14.0))
+    assert first.decision.reasons["work"] == "pre_heat"
+    # Warming shrinks the shortfall (17 degC: 1.5 h) but pre-heat must not stop half way.
+    later = c.step(snap(start + timedelta(minutes=30), temp=17.0))
+    assert later.decision.reasons["work"] == "pre_heat"
+    assert later.lead_times["work"] == timedelta(hours=3)

@@ -6,9 +6,9 @@ mild week compare fairly, and this week is compared with the same period last ye
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Mapping, Sequence
 
 from .engine import Alert
 from .engine.insights import Suggestion

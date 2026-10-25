@@ -12,10 +12,11 @@ Four things are learned per Room, each with a safe fallback while data is thin:
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from statistics import median
-from typing import Any, Callable, Mapping
+from typing import Any
 
 SCHEMA_VERSION = 1
 

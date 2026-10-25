@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 
 from custom_components.smart_heating.engine import (
     Boost,
@@ -12,7 +12,7 @@ from custom_components.smart_heating.engine import (
 )
 from custom_components.smart_heating.explain import explain
 
-UTC = timezone.utc
+UTC = UTC
 ROOM = RoomConfig(
     name="work",
     comfort=20.0,
@@ -25,7 +25,7 @@ MON_10 = datetime(2026, 1, 12, 10, 0, tzinfo=UTC)  # a Monday
 
 def run(now, temp=18.0, room=ROOM, **kw):
     inp = EngineInput(
-        config=EngineConfig(rooms=(room,), easycontrol_low=10, easycontrol_high=22),
+        config=EngineConfig(rooms=(room,), boiler_low=10, boiler_high=22),
         now=now,
         anyone_home=kw.pop("anyone_home", True),
         trv_temps={room.name: SensorReading(temp, now)},
@@ -70,10 +70,11 @@ def test_away_has_no_next_change():
     assert (e.reason, e.target, e.next_change_at) == ("away", 16.0, None)
 
 
-def test_vacation_reason_next_change_is_vacation_end():
-    until = datetime(2026, 1, 19, 0, 0, tzinfo=UTC)
+def test_vacation_reason_next_change_is_the_release_before_the_return():
+    until = datetime(2026, 1, 19, 18, 0, tzinfo=UTC)
     e = run(MON_10, anyone_home=False, vacation_until=until)
-    assert (e.reason, e.target, e.next_change_at) == ("vacation", 12.0, until)
+    # Released one lead time (70 min fixed) before the return.
+    assert (e.reason, e.target, e.next_change_at) == ("vacation", 12.0, until - timedelta(minutes=70))
 
 
 def test_window_open_pause():

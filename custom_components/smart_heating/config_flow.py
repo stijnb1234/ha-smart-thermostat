@@ -13,41 +13,56 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_ARRIVAL_ENTITIES,
+    CONF_AUTO_ARRIVAL,
     CONF_BACKOFF_BASE_MINUTES,
     CONF_BACKOFF_MAX_MINUTES,
     CONF_BATTERY_LOW_PERCENT,
+    CONF_BOILER_ENTITY,
+    CONF_BOILER_HIGH,
+    CONF_BOILER_LOW,
+    CONF_BOILER_MANUAL_HOLD_MINUTES,
+    CONF_BOILER_SETTLE_MINUTES,
     CONF_BOOST_MINUTES,
     CONF_DEBOUNCE_MINUTES,
     CONF_DEMAND_HYSTERESIS,
-    CONF_EASYCONTROL_MANUAL_HOLD_MINUTES,
-    CONF_EASYCONTROL_SETTLE_MINUTES,
-    CONF_TRV_SETTLE_MINUTES,
+    CONF_GAS_ENTITY,
+    CONF_HDD_BASE,
     CONF_MANUAL_OVERRIDE_MINUTES,
     CONF_OUTAGE_FAILURES,
+    CONF_OUTDOOR_ENTITY,
+    CONF_PERSONS,
     CONF_PRE_BED_END,
     CONF_PRE_BED_START,
+    CONF_ROOMS,
     CONF_SENSOR_STALE_HOURS,
     CONF_TARGET_WINDOW_HOURS,
     CONF_TRV_OFFLINE_MINUTES,
+    CONF_TRV_SETTLE_MINUTES,
+    CONF_VACATION_CALENDAR,
+    CONF_VACATION_KEYWORDS,
+    CONF_Z2M_BASE_TOPIC,
+    DEFAULT_AUTO_ARRIVAL,
+    DEFAULT_BOILER_HIGH,
+    DEFAULT_BOILER_LOW,
     DEFAULT_BOOST_MINUTES,
     DEFAULT_MANUAL_OVERRIDE_MINUTES,
     DEFAULT_PRE_BED_END,
     DEFAULT_PRE_BED_START,
-    CONF_EASYCONTROL_ENTITY,
-    CONF_EASYCONTROL_HIGH,
-    CONF_EASYCONTROL_LOW,
-    CONF_GAS_ENTITY,
-    CONF_HDD_BASE,
-    CONF_OUTDOOR_ENTITY,
-    CONF_ARRIVAL_ENTITIES,
-    CONF_PERSONS,
-    CONF_ROOMS,
-    DEFAULT_EASYCONTROL_HIGH,
-    DEFAULT_EASYCONTROL_LOW,
+    DEFAULT_VACATION_KEYWORDS,
     DOMAIN,
 )
-from .report import DEFAULT_HDD_BASE
+from .engine import (
+    DEFAULT_COMFORT,
+    DEFAULT_FROST_HOLD,
+    DEFAULT_SETBACK,
+    AlertConfig,
+    EngineConfig,
+    RoomConfig,
+)
 from .i18n import pick_language, tr
+from .migration import CONFIG_VERSION
+from .report import DEFAULT_HDD_BASE
 from .rooms import (
     PRESETS,
     RoomError,
@@ -57,22 +72,18 @@ from .rooms import (
     replace_room,
     room_from_form,
 )
-from .engine import (
-    AlertConfig,
-    DEFAULT_COMFORT,
-    DEFAULT_FROST_HOLD,
-    DEFAULT_SETBACK,
-    EngineConfig,
-    RoomConfig,
-)
+from .trv_devices import DEFAULT_Z2M_BASE_TOPIC
 
 REPORT_KEYS = (CONF_GAS_ENTITY, CONF_OUTDOOR_ENTITY, CONF_HDD_BASE)
 HEATING_KEYS = (
-    CONF_EASYCONTROL_ENTITY,
-    CONF_ARRIVAL_ENTITIES,
+    CONF_BOILER_ENTITY,
     CONF_PERSONS,
-    CONF_EASYCONTROL_LOW,
-    CONF_EASYCONTROL_HIGH,
+    CONF_AUTO_ARRIVAL,
+    CONF_ARRIVAL_ENTITIES,
+    CONF_VACATION_CALENDAR,
+    CONF_VACATION_KEYWORDS,
+    CONF_BOILER_LOW,
+    CONF_BOILER_HIGH,
     CONF_BOOST_MINUTES,
     CONF_MANUAL_OVERRIDE_MINUTES,
     CONF_PRE_BED_START,
@@ -83,20 +94,21 @@ ADVANCED_KEYS = (
     CONF_BACKOFF_BASE_MINUTES,
     CONF_BACKOFF_MAX_MINUTES,
     CONF_DEMAND_HYSTERESIS,
-    CONF_EASYCONTROL_MANUAL_HOLD_MINUTES,
-    CONF_EASYCONTROL_SETTLE_MINUTES,
+    CONF_BOILER_MANUAL_HOLD_MINUTES,
+    CONF_BOILER_SETTLE_MINUTES,
     CONF_TRV_SETTLE_MINUTES,
     CONF_TRV_OFFLINE_MINUTES,
     CONF_TARGET_WINDOW_HOURS,
     CONF_OUTAGE_FAILURES,
     CONF_SENSOR_STALE_HOURS,
     CONF_BATTERY_LOW_PERCENT,
+    CONF_Z2M_BASE_TOPIC,
 )
 SETTING_KEYS = REPORT_KEYS + HEATING_KEYS + ADVANCED_KEYS
 
 
 class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = CONFIG_VERSION
 
     @staticmethod
     @callback
@@ -122,10 +134,12 @@ def _temp(default: float) -> tuple[Any, Any]:
 
 def _number(min_: float, max_: float, step: float, unit: str | None = None) -> Any:
     # NumberSelectorConfig rejects an explicit unit_of_measurement=None, so only pass it when set.
-    config: dict[str, Any] = {"min": min_, "max": max_, "step": step, "mode": "box"}
-    if unit is not None:
-        config["unit_of_measurement"] = unit
-    return selector.NumberSelector(selector.NumberSelectorConfig(**config))
+    box = selector.NumberSelectorMode.BOX
+    if unit is None:
+        return selector.NumberSelector(selector.NumberSelectorConfig(min=min_, max=max_, step=step, mode=box))
+    return selector.NumberSelector(
+        selector.NumberSelectorConfig(min=min_, max=max_, step=step, mode=box, unit_of_measurement=unit)
+    )
 
 
 def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> vol.Schema:
@@ -166,7 +180,7 @@ def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> v
             opt("frost_hold", DEFAULT_FROST_HOLD): comfort,
             opt("preset", default_preset): selector.SelectSelector(
                 selector.SelectSelectorConfig(
-                    options=list(PRESETS), translation_key="preset", mode="dropdown"
+                    options=list(PRESETS), translation_key="preset", mode=selector.SelectSelectorMode.DROPDOWN
                 )
             ),
             opt("schedule_text", format_schedule(room.get("schedule", []))): selector.TextSelector(
@@ -259,8 +273,10 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._settings = {
                 **{k: v for k, v in current.items() if k not in HEATING_KEYS},
-                **{k: v for k, v in user_input.items() if v not in (None, "", [])},
+                **{k: v for k, v in user_input.items() if v not in (None, [])},
             }
+            if not self._settings.get(CONF_VACATION_CALENDAR):
+                self._settings.pop(CONF_VACATION_CALENDAR, None)
             return await self.async_step_init()
 
         def opt(key, default=None):
@@ -271,20 +287,25 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         )
         schema = vol.Schema(
             {
-                opt(CONF_EASYCONTROL_ENTITY): selector.EntitySelector(
+                opt(CONF_BOILER_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="climate")
                 ),
                 opt(CONF_PERSONS): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="person", multiple=True)
                 ),
+                opt(CONF_AUTO_ARRIVAL, DEFAULT_AUTO_ARRIVAL): selector.BooleanSelector(),
                 opt(CONF_ARRIVAL_ENTITIES): selector.EntitySelector(
                     selector.EntitySelectorConfig(
                         domain=["zone", "person", "device_tracker", "binary_sensor", "input_boolean", "switch"],
                         multiple=True,
                     )
                 ),
-                opt(CONF_EASYCONTROL_LOW, DEFAULT_EASYCONTROL_LOW): temp,
-                opt(CONF_EASYCONTROL_HIGH, DEFAULT_EASYCONTROL_HIGH): temp,
+                opt(CONF_VACATION_CALENDAR): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="calendar")
+                ),
+                opt(CONF_VACATION_KEYWORDS, DEFAULT_VACATION_KEYWORDS): selector.TextSelector(),
+                opt(CONF_BOILER_LOW, DEFAULT_BOILER_LOW): temp,
+                opt(CONF_BOILER_HIGH, DEFAULT_BOILER_HIGH): temp,
                 opt(CONF_BOOST_MINUTES, DEFAULT_BOOST_MINUTES): _number(5, 480, 5, "min"),
                 opt(CONF_MANUAL_OVERRIDE_MINUTES, DEFAULT_MANUAL_OVERRIDE_MINUTES): _number(
                     5, 720, 5, "min"
@@ -307,23 +328,24 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         def opt(key, default):
             return vol.Optional(key, description={"suggested_value": current.get(key, default)})
 
-        engine, alerts = EngineConfig(rooms=(), easycontrol_low=0, easycontrol_high=0), AlertConfig()
+        engine, alerts = EngineConfig(rooms=(), boiler_low=0, boiler_high=0), AlertConfig()
         minutes = lambda td: td.total_seconds() / 60  # noqa: E731
         hours = lambda td: td.total_seconds() / 3600  # noqa: E731
         schema = vol.Schema(
             {
-                opt(CONF_DEBOUNCE_MINUTES, minutes(engine.easycontrol_debounce)): _number(0, 60, 1, "min"),
-                opt(CONF_BACKOFF_BASE_MINUTES, minutes(engine.easycontrol_backoff_base)): _number(1, 60, 1, "min"),
-                opt(CONF_BACKOFF_MAX_MINUTES, minutes(engine.easycontrol_backoff_max)): _number(1, 240, 1, "min"),
+                opt(CONF_DEBOUNCE_MINUTES, minutes(engine.boiler_debounce)): _number(0, 60, 1, "min"),
+                opt(CONF_BACKOFF_BASE_MINUTES, minutes(engine.boiler_backoff_base)): _number(1, 60, 1, "min"),
+                opt(CONF_BACKOFF_MAX_MINUTES, minutes(engine.boiler_backoff_max)): _number(1, 240, 1, "min"),
                 opt(CONF_DEMAND_HYSTERESIS, engine.demand_hysteresis): _number(0, 2, 0.1, "°C"),
                 opt(CONF_TRV_SETTLE_MINUTES, minutes(engine.trv_settle)): _number(1, 120, 1, "min"),
-                opt(CONF_EASYCONTROL_SETTLE_MINUTES, minutes(engine.easycontrol_settle)): _number(1, 120, 1, "min"),
-                opt(CONF_EASYCONTROL_MANUAL_HOLD_MINUTES, minutes(engine.easycontrol_manual_hold)): _number(5, 1440, 5, "min"),
+                opt(CONF_BOILER_SETTLE_MINUTES, minutes(engine.boiler_settle)): _number(1, 120, 1, "min"),
+                opt(CONF_BOILER_MANUAL_HOLD_MINUTES, minutes(engine.boiler_manual_hold)): _number(5, 1440, 5, "min"),
                 opt(CONF_TRV_OFFLINE_MINUTES, minutes(alerts.trv_offline_after)): _number(10, 1440, 5, "min"),
                 opt(CONF_TARGET_WINDOW_HOURS, hours(alerts.target_window)): _number(1, 24, 0.5, "h"),
                 opt(CONF_OUTAGE_FAILURES, alerts.outage_after_failures): _number(1, 20, 1),
                 opt(CONF_SENSOR_STALE_HOURS, hours(alerts.sensor_stale_after)): _number(1, 48, 0.5, "h"),
                 opt(CONF_BATTERY_LOW_PERCENT, alerts.battery_low_percent): _number(5, 50, 1, "%"),
+                opt(CONF_Z2M_BASE_TOPIC, DEFAULT_Z2M_BASE_TOPIC): selector.TextSelector(),
             }
         )
         return self.async_show_form(step_id="advanced_settings", data_schema=schema)
@@ -372,6 +394,7 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         current = next(r for r in self.rooms if r["name"] == self._editing)
         if user_input is not None:
             try:
+                assert self._editing is not None
                 self._rooms = replace_room(self.rooms, self._editing, self._room_from_input(user_input))
                 return await self.async_step_init()
             except RoomError as err:

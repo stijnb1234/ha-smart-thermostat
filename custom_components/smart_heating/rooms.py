@@ -1,6 +1,7 @@
 """Pure mapping between stored Room config (config entry options) and the engine.
 
 No Home Assistant imports. A stored room is a JSON-serialisable dict:
+  id (stable: set once from the name, kept on rename; keys entities and learned data),
   name, [trv_entity], [manual], [floor_heating: no TRV, needs sensor; long pre-heat], [open_radiators: no TRV yet, needs sensor; caps the boiler call at its comfort], [sensor_entity], [arrival_entities: same kinds, or a person in a zone; active = heading home, room warms early],
   [presence_entities: person/tracker/switch ids; room is skipped by the
   schedule while all are away], [comfort], [setback], [frost_hold],
@@ -13,22 +14,24 @@ control it; it only matters through the Manual-room override.
 
 from __future__ import annotations
 
+import re
+import unicodedata
+from collections.abc import Callable, Collection, Mapping, Sequence
 from datetime import time, timedelta
-from typing import Any, Mapping, Sequence
+from typing import Any
 
-from .i18n import tr
 from .engine import (
+    DEFAULT_COMFORT,
     DEFAULT_FLOOR_LEAD_TIME,
+    DEFAULT_FROST_HOLD,
     DEFAULT_LEAD_TIME,
     DEFAULT_LIVING_AREA_SCHEDULE,
-    DEFAULT_WORK_SCHEDULE,
-    DEFAULT_COMFORT,
-    DEFAULT_FROST_HOLD,
     DEFAULT_SETBACK,
+    DEFAULT_WORK_SCHEDULE,
     RoomConfig,
     ScheduleWindow,
 )
-
+from .i18n import tr
 
 MIN_TEMP = 5.0
 MAX_TEMP = 30.0
@@ -58,6 +61,12 @@ class RoomError(ValueError):
         super().__init__(tr("en", f"room_error.{code}", **params))
 
 
+def slug(text: str) -> str:
+    """Lowercase ASCII words joined by underscores, as in Home Assistant object ids."""
+    ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "_", ascii_text.lower()).strip("_")
+
+
 def _parse_time(text: str) -> time:
     try:
         hh, mm, *_seconds = text.strip().split(":")  # HH:MM or HH:MM:SS (time selector)
@@ -79,7 +88,7 @@ def _parse_days(text: str) -> list[int]:
             if a not in DAY_NAMES or b not in DAY_NAMES:
                 raise RoomError("invalid_days", text=repr(part))
             i, j = DAY_NAMES.index(a), DAY_NAMES.index(b)
-            days.update(range(i, j + 1) if i <= j else [*range(i, 7), *range(0, j + 1)])
+            days.update(range(i, j + 1) if i <= j else [*range(i, 7), *range(j + 1)])
         elif DAY_ALIASES.get(part, part) in DAY_NAMES:
             days.add(DAY_NAMES.index(DAY_ALIASES.get(part, part)))
         else:
@@ -171,6 +180,8 @@ def room_from_form(
 def validate_room(room: Mapping[str, Any]) -> None:
     if not str(room.get("name", "")).strip():
         raise RoomError("name_required")
+    if not slug(str(room["name"])):
+        raise RoomError("name_needs_letters")
     if room.get("floor_heating") or room.get("open_radiators"):
         if not str(room.get("sensor_entity", "")).strip():
             raise RoomError("floor_needs_sensor")
@@ -194,27 +205,95 @@ def validate_room(room: Mapping[str, Any]) -> None:
 
 
 def _check_unique(others: Sequence[Mapping[str, Any]], room: Mapping[str, Any]) -> None:
-    if any(o["name"] == room["name"] for o in others):
+    # Names that only differ in case or punctuation would give the same entity ids.
+    if any(slug(o["name"]) == slug(room["name"]) for o in others):
         raise RoomError("duplicate_name")
     trv = room.get("trv_entity")
     if trv and any(o.get("trv_entity") == trv for o in others):
         raise RoomError("duplicate_trv")
 
 
+def _free_id(name: str, taken: Collection[str]) -> str:
+    base = slug(name)
+    candidate, n = base, 1
+    while candidate in taken:
+        n += 1
+        candidate = f"{base}_{n}"
+    return candidate
+
+
 def add_room(rooms: Sequence[Mapping[str, Any]], room: Mapping[str, Any]) -> list[dict[str, Any]]:
     validate_room(room)
     _check_unique(rooms, room)
-    return [*map(dict, rooms), dict(room)]
+    new = {**room, "id": _free_id(room["name"], {r["id"] for r in rooms if r.get("id")})}
+    return [*map(dict, rooms), new]
 
 
 def replace_room(
     rooms: Sequence[Mapping[str, Any]], name: str, room: Mapping[str, Any]
 ) -> list[dict[str, Any]]:
-    if not any(r["name"] == name for r in rooms):
+    current = next((r for r in rooms if r["name"] == name), None)
+    if current is None:
         raise RoomError("unknown_room", text=repr(name))
     validate_room(room)
     _check_unique([r for r in rooms if r["name"] != name], room)
-    return [dict(room) if r["name"] == name else dict(r) for r in rooms]
+    edited = {**room, "id": current.get("id") or _free_id(name, {r["id"] for r in rooms if r.get("id")})}
+    return [edited if r["name"] == name else dict(r) for r in rooms]
+
+
+def ensure_room_ids(rooms: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Give Rooms stored before ids existed an id from their name (their entity ids so far)."""
+    taken = {r["id"] for r in rooms if r.get("id")}
+    result = []
+    for r in rooms:
+        if not r.get("id"):
+            r = {**r, "id": _free_id(r["name"], taken)}
+            taken.add(r["id"])
+        result.append(dict(r))
+    return result
+
+
+def room_id(room: Mapping[str, Any]) -> str:
+    return room.get("id") or slug(room["name"])
+
+
+class RoomKeys:
+    """Translates Room keys between the engine (names, readable in alerts and logs) and
+    storage (ids, so learned data and bookkeeping survive a rename)."""
+
+    def __init__(self, rooms: Sequence[Mapping[str, Any]]) -> None:
+        self._id_of = {r["name"]: room_id(r) for r in rooms}
+        self._name_of = {room_id(r): r["name"] for r in rooms}
+
+    def to_ids(self, by_name: Mapping[str, Any]) -> dict[str, Any]:
+        return {self._id_of[n]: v for n, v in by_name.items() if n in self._id_of}
+
+    def to_names(self, stored: Mapping[str, Any]) -> dict[str, Any]:
+        """Stored keys are ids; data saved by name before ids existed is read too."""
+        result: dict[str, Any] = {}
+        for key, value in stored.items():
+            name = self._name_of.get(key) or (key if key in self._id_of else None)
+            if name is not None:
+                result.setdefault(name, value)
+        return result
+
+    def _sections(
+        self, data: Mapping[str, Any] | None, sections: Sequence[str], convert: Callable
+    ) -> dict[str, Any] | None:
+        if data is None:
+            return None
+        return {
+            k: convert(v) if k in sections and isinstance(v, Mapping) else v for k, v in data.items()
+        }
+
+    def sections_to_ids(self, data: Mapping[str, Any], sections: Sequence[str]) -> dict[str, Any]:
+        """`data` with the per-Room mappings under `sections` keyed by id."""
+        return self._sections(data, sections, self.to_ids) or {}
+
+    def sections_to_names(
+        self, data: Mapping[str, Any] | None, sections: Sequence[str]
+    ) -> dict[str, Any] | None:
+        return self._sections(data, sections, self.to_names)
 
 
 def remove_room(rooms: Sequence[Mapping[str, Any]], name: str) -> list[dict[str, Any]]:
@@ -229,6 +308,7 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
     return tuple(
         RoomConfig(
             name=r["name"],
+            id=room_id(r),
             comfort=float(r.get("comfort", DEFAULT_COMFORT)),
             setback=float(r.get("setback", DEFAULT_SETBACK)),
             frost_hold=float(r.get("frost_hold", DEFAULT_FROST_HOLD)),
