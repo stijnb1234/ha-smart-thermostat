@@ -60,7 +60,7 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "| Kept at 16 degrees | Lower temperature, nothing scheduled. |\n"
             "| Warming up, warm until 17:00 | Started early so it is warm when the schedule begins. |\n"
             "| Boost until 14:00 | You pressed Boost. Warm until then or until you cancel. |\n"
-            "| Window seems open, heating paused until 14:20 | It cooled very fast, so heating pauses a while. |\n"
+            "| Window seems open, heating paused until 14:20 | It cooled faster than usual for this room, so heating pauses a while. |\n"
             "| Nobody home, kept at 16 degrees | Nobody is home. Long absence: just above freezing. |\n"
             "| Room's person is away, kept at 16 degrees | The person this room is for is away: schedule skipped. Warms up when they are back or on their way. |\n"
             "| Waiting for the floor heating to warm up first, kept at 12 degrees | The slow floor heating warms up first. Idle radiators stay closed meanwhile. |\n"
@@ -86,6 +86,23 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "- **Manual room override**: for rooms you heat by hand. Calls the boiler for a set time. Cancel to stop early.",
         ),
         (
+            "Rooms without smart valves",
+            "A room set up with **open radiators** has no smart valve yet. It calls the boiler when it "
+            "is cold and **stops every boiler call once it is at its comfort temperature**, so the "
+            "house does not get warmer than that room should be. A cold room elsewhere then waits. "
+            "The Manual room override still starts the boiler.",
+        ),
+        (
+            "What the system learns",
+            "Per room, kept across restarts, standard values until there is data:\n"
+            "- **Pre-heat time**: how early to start.\n"
+            "- **Open window**: what a normal temperature change is, so a window is spotted sooner.\n"
+            "- **Coast**: how far a room keeps warming after the boiler stops, so the boiler stops earlier.\n"
+            "- **Thermometers**: the difference between the valve's and the room's thermometer.\n"
+            "- **Your habits**: Boost or valve turned up at the same time on 3+ days shows up as a "
+            "schedule suggestion in the Monday report. The schedule is never changed by itself.",
+        ),
+        (
             "Changed something by hand?",
             "A radiator you turn by hand is left alone until that room's target next changes.",
         ),
@@ -106,7 +123,7 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "| Op 16 graden gehouden | Lagere temperatuur, niets gepland. |\n"
             "| Opwarmen, warm tot 17:00 | Eerder begonnen, zodat het warm is als het schema start. |\n"
             "| Boost tot 14:00 | Je drukte op Boost. Warm tot dan of tot je annuleert. |\n"
-            "| Raam lijkt open, verwarming gepauzeerd tot 14:20 | Koelde heel snel af, dus de verwarming pauzeert even. |\n"
+            "| Raam lijkt open, verwarming gepauzeerd tot 14:20 | Koelde sneller af dan normaal voor deze ruimte, dus de verwarming pauzeert even. |\n"
             "| Niemand thuis, op 16 graden gehouden | Niemand is thuis. Lange afwezigheid: net boven vorst. |\n"
             "| Persoon van deze ruimte is weg, op 16 graden gehouden | De persoon voor wie deze ruimte is, is weg: schema overgeslagen. Warmt op als diegene terug of onderweg is. |\n"
             "| Wacht tot de vloerverwarming is opgewarmd, op 12 graden gehouden | De trage vloerverwarming warmt eerst op. Ongebruikte radiatoren blijven intussen dicht. |\n"
@@ -130,6 +147,23 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "- **Gepauzeerd na een fout**: even wachten zodat de Bosch-cloud niet overspoeld wordt.\n"
             "- **Handmatige wijziging op de EasyControl**: je veranderde het zelf. Ongeveer twee uur gerespecteerd.\n"
             "- **Handmatige ruimte-override**: voor ruimtes die je met de hand verwarmt. Roept de boiler een ingestelde tijd aan. Annuleer om eerder te stoppen.",
+        ),
+        (
+            "Ruimtes zonder slimme kranen",
+            "Een ruimte met **open radiatoren** heeft nog geen slimme kraan. Ze vraagt de boiler om "
+            "warmte als het koud is en **stopt elke boileraanvraag zodra ze op comforttemperatuur is**, "
+            "zodat het huis niet warmer wordt dan die ruimte hoort te zijn. Een koude ruimte elders "
+            "wacht dan. De Handmatige ruimte-override zet de boiler wel aan.",
+        ),
+        (
+            "Wat het systeem leert",
+            "Per ruimte, bewaard na een herstart, standaardwaarden tot er gegevens zijn:\n"
+            "- **Voorverwarmtijd**: hoe vroeg beginnen.\n"
+            "- **Open raam**: wat een normale temperatuurwijziging is, zodat een raam sneller opvalt.\n"
+            "- **Nawarmen**: hoever een ruimte blijft opwarmen nadat de boiler stopt, zodat de boiler eerder stopt.\n"
+            "- **Thermometers**: het verschil tussen de thermometer van de kraan en die van de ruimte.\n"
+            "- **Jouw gewoontes**: Boost of kraan hoger op dezelfde tijd op 3+ dagen komt als "
+            "schemasuggestie in het maandagrapport. Het schema verandert nooit vanzelf.",
         ),
         (
             "Zelf iets versteld?",

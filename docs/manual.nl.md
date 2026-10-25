@@ -14,6 +14,8 @@ Dat werkt zo:
 - **De cv-ketel** gaat alleen branden als minstens één kamer warm moet zijn en nog duidelijk te koud is. Op het scherm heet de ketel ‘boiler’.
 - **Elke kamer heeft een schema**: de tijden waarop het daar warm moet zijn. Buiten die tijden zakt de kamer naar een lagere temperatuur.
 - **Het systeem let op wat er in huis gebeurt**: is iedereen weg, staat er een raam open, ben je met vakantie? Dan past het de temperatuur vanzelf aan.
+- **Het leert je huis kennen.** Elke kamer warmt en koelt op zijn eigen manier. Smart Heating merkt hoe, en gebruikt dat om op tijd te beginnen, een open raam sneller te herkennen en de ketel uit te zetten voordat de kamer te warm wordt.
+- **Kamers zonder slimme kraan doen ook mee.** Zolang niet elke radiator een slimme kraan heeft, nemen die kamers toch deel, en zorgen ze ervoor dat het huis niet warmer wordt dan je wilt.
 
 Je hoeft er dus meestal niets voor te doen. Wil je het eens anders, dan zijn er een paar knoppen, zoals **Boost** om een kamer nu meteen warm te stoken.
 
@@ -100,7 +102,7 @@ Het schema aanpassen doet de beheerder in de instellingen.
 
 ### Op tijd warm
 
-Een kamer begint al voor de geplande tijd met opwarmen, zodat hij op tijd warm is. In het begin is dat ruim een uur van tevoren. Daarna leert het systeem per kamer hoe lang opwarmen echt duurt, ook afhankelijk van hoe koud het buiten is. Je ziet dan *Opwarmen* bij de kamer staan.
+Een kamer begint al voor de geplande tijd met opwarmen, zodat hij op tijd warm is. In het begin is dat ruim een uur van tevoren. Daarna leert het systeem per kamer hoe lang opwarmen echt duurt, ook afhankelijk van hoe koud het buiten is. Je ziet dan *Opwarmen* bij de kamer staan. Meer daarover bij [Het systeem leert](#het-systeem-leert).
 
 ### Wie wint er?
 
@@ -117,15 +119,42 @@ Soms gelden er meerdere dingen tegelijk. Dan wint de bovenste uit dit rijtje:
 
 Deze dingen gebeuren automatisch. Je hoeft er niets voor te doen.
 
-- **Raam open:** als een kamer ineens heel snel afkoelt, gaat het systeem ervan uit dat er een raam open staat. De verwarming in die kamer pauzeert dan een kwartier tot een half uur, zodat je niet de straat verwarmt.
+- **Raam open:** koelt een kamer ineens sneller af dan hij normaal doet, dan gaat het systeem ervan uit dat er een raam open staat. De verwarming in die kamer pauzeert dan een kwartier tot een half uur, zodat je niet de straat verwarmt. Het systeem kijkt hiervoor naar de thermometer in de radiatorkraan, want die zit meestal dicht bij het raam en merkt tocht als eerste. Wat ‘ineens’ is, leert het systeem per kamer, zie [Het systeem leert](#het-systeem-leert).
 - **Niemand thuis:** is iedereen de deur uit, dan gaan alle kamers naar de lagere temperatuur (16 °C). Ben je langer dan twee dagen weg, dan zakt het huis naar vorstbeveiliging (12 °C).
 - **Kamer van iemand die weg is:** een kamer kan bij bepaalde personen horen, bijvoorbeeld een werkkamer. Zijn die allemaal weg, dan blijft die kamer op de lagere temperatuur, ook als het schema iets anders zegt. Een Boost werkt wel gewoon.
 - **Onderweg naar huis:** als de beheerder dit heeft ingesteld, merkt het systeem dat je onderweg bent, bijvoorbeeld als je in de buurt van huis komt. Het huis begint dan alvast op te warmen, zodat het warm is als je binnenkomt.
 - **Vloerverwarming:** vloerverwarming is traag. Een kamer met vloerverwarming begint daarom al een paar uur voor de geplande tijd. Zolang die opwarmt, blijven de radiatoren in kamers die niet gebruikt worden dicht, zodat de warmte naar de vloer gaat.
-- **Kamers zonder slimme kranen:** een kamer met *open radiatoren* vraagt om warmte als het koud is en zet de ketel uit zodra het warm genoeg is, zodat het hele huis niet voorbij die kamer wordt verwarmd.
-- **Leren:** per kamer leert het systeem hoeveel de temperatuur normaal schommelt (zodat een open raam sneller wordt herkend), hoever de kamer nog opwarmt nadat de ketel stopt (zodat de ketel op tijd stopt) en hoe de thermometer afwijkt van die van de kraan. In het maandagrapport staan schematijden als je vaak rond dezelfde tijd buiten het schema op Boost drukt of de kraan hoger zet. Het schema verandert nooit vanzelf.
+- **Kamers zonder slimme kranen:** die vragen om warmte als het er koud is en zetten de ketel uit zodra het warm genoeg is. Zie [Kamers zonder slimme kranen](#kamers-zonder-slimme-kranen).
+- **Een kamer die niet warmer wordt:** vraagt een kamer al driekwartier om warmte en is hij nauwelijks warmer geworden, dan krijg je een melding. Zie [Meldingen](#meldingen-1).
 - **Kraan uitgezet:** staat een slimme radiatorkraan uit, dan zet het systeem hem vanzelf weer aan.
-- **Weekrapport:** elke maandag om 08:00 krijg je een bericht in Home Assistant (bij het belletje). Daarin staat hoeveel gas er is gebruikt vergeleken met vorig jaar, rekening houdend met hoe koud het was, hoeveel uur elke kamer verwarmd is en of er problemen waren.
+- **Weekrapport:** elke maandag om 08:00 krijg je een bericht in Home Assistant (bij het belletje). Daarin staat hoeveel gas er is gebruikt vergeleken met vorig jaar, rekening houdend met hoe koud het was, hoeveel uur elke kamer verwarmd is en of er problemen waren. Heeft het systeem een gewoonte van je opgemerkt, dan staat er ook een suggestie voor het schema in.
+
+## Kamers zonder slimme kranen
+
+Niet elke kamer heeft al een slimme kraan. Stel dat je nog wacht op de kranen in de woonruimte. De radiatoren daar staan de hele tijd open (of je draait ze met de hand), dus Smart Heating kan ze niet dichtdoen.
+
+Dat geeft een probleem. De ketel wordt aangezet via de Bosch EasyControl, en die thermostaat hangt in de woonkamer. Vraagt een andere kamer, bijvoorbeeld de slaapkamer, om warmte, dan blijft de ketel branden tot ook de woonkamer warm is. Staan alle radiatoren open, dan wordt de woonkamer veel warmer dan je wilde, tot wel 22 graden.
+
+De beheerder lost dit op door die kamers toe te voegen als kamer met **open radiatoren**. Zo’n kamer heeft een temperatuursensor nodig en volgt zijn schema zoals elke andere kamer. Voor de ketel werkt het zo:
+
+- **Hij vraagt om warmte als het koud is.** Is de kamer meer dan 0,3 graden onder zijn comforttemperatuur, dan wordt de ketel gevraagd te branden.
+- **Hij zet de ketel uit als het warm genoeg is.** Zodra de kamer zijn comforttemperatuur haalt, gaat de ketel uit. Dat geldt voor alle kamers: ook als de slaapkamer nog koud is, wacht de ketel tot de woonruimte weer iets is afgekoeld. Zo wordt het huis nooit warmer dan die kamer mag worden.
+
+Goed om te weten:
+
+- **Eén sensor, één kamer.** Heb je maar één thermometer voor de hele woonruimte, voeg die dan toe als één kamer (bijvoorbeeld *Woonruimte*) in plaats van drie kamers op dezelfde thermometer. Dat werkt even goed en is makkelijker bij te houden.
+- **Een koude slaapkamer moet soms wachten.** Zolang de woonruimte warm is, blijft de ketel uit, ook als een andere kamer wat te koud is. Dat is de prijs van de open radiatoren. Twee manieren eromheen: draai een radiator met de hand dicht, of gebruik de **Handmatige ruimte-override**, die de ketel altijd aanzet.
+- **Zijn de kranen er eenmaal,** dan zet de beheerder *open radiatoren* uit, voegt hij de woonkamers toe als gewone kamers met hun kranen, en haalt hij de gecombineerde kamer weg. De begrenzing verdwijnt dan vanzelf, omdat elke kraan zijn eigen radiator dichtdraait.
+
+## Het systeem leert
+
+Smart Heating begint met verstandige standaardwaarden en leert daarna elke kamer kennen. Dat gebeurt per kamer, het blijft bewaard na een herstart, en zolang er nog te weinig gegevens zijn, gelden gewoon de standaardwaarden. Je hoeft er niets voor te doen.
+
+- **Hoe lang opwarmen duurt.** Het systeem onthoudt hoe snel een kamer opwarmt en hoe koud het toen buiten was. Zo weet het hoe vroeg het moet beginnen voordat het schema start (zie [Op tijd warm](#op-tijd-warm)).
+- **Wat een open raam is.** Elke kamer koelt een beetje anders af: een kamer met een groot raam daalt sneller dan een kleine slaapkamer. Na ongeveer drie uur rustige metingen weet het systeem wat voor een kamer normaal is en wat niet. Een kamer die normaal nauwelijks verandert, herkent een open raam sneller. De instelling van de beheerder voor de temperatuurdaling is het maximum: het systeem kan de kamer alerter maken dan dat, nooit minder alert.
+- **Hoever een kamer blijft opwarmen.** Een radiator blijft nog even warm nadat de ketel stopt. Het systeem meet hoeveel verder de kamer opwarmt, en zet de ketel zoveel eerder uit. Zo komt de kamer precies op zijn doel tot rust in plaats van er iets boven, wat gas bespaart. Dit leert het na minstens drie keer verwarmen, en de correctie is nooit meer dan één graad.
+- **Hoe de thermometers verschillen.** De thermometer in een radiatorkraan meet een andere waarde dan de losse thermometer midden in de kamer. Het systeem vergelijkt de twee zolang de radiator uit staat. Wordt de losse thermometer ooit stil, dan gebruikt het de waarde van de kraan, gecorrigeerd met dat verschil, in plaats van er een stukje naast te zitten. Heeft de beheerder zelf een correctie ingesteld, dan geldt die.
+- **Wat je met de hand doet.** Druk je regelmatig rond dezelfde tijd op **Boost** of draai je een kraan omhoog, buiten het schema, dan merkt het systeem dat. Is dat op minstens drie verschillende dagen binnen vier weken gebeurd, dan staat het in het maandagrapport, bijvoorbeeld *je vraagt vaak om warmte op di, do rond 07:10, overweeg dit aan het schema toe te voegen*. Het systeem past het schema nooit zelf aan, dat doe jij of de beheerder.
 
 ## De knoppen
 
@@ -133,7 +162,7 @@ Alle knoppen staan op het Overzicht, aan de rechterkant. Een knop gebruik je doo
 
 ### Boost: nu even warm
 
-Is het koud in een kamer en wil je niet wachten op het schema? Druk dan bij die kamer op **Boost**. De kamer gaat meteen naar de comforttemperatuur en de ketel springt aan als dat nodig is. Een Boost duurt standaard een uur. Daarna gaat de kamer vanzelf terug naar het schema.
+Is het koud in een kamer en wil je niet wachten op het schema? Druk dan bij die kamer op **Boost**. De kamer gaat meteen naar de comforttemperatuur en de ketel springt aan als dat nodig is. Eén uitzondering: is een kamer met open radiatoren (zie [Kamers zonder slimme kranen](#kamers-zonder-slimme-kranen)) al warm, dan blijft de ketel uit. De **Handmatige ruimte-override** heeft die beperking niet. Een Boost duurt standaard een uur. Daarna gaat de kamer vanzelf terug naar het schema.
 
 Wil je eerder stoppen, druk dan op **Boost annuleren**. Bij de kamer zie je zolang *Boost tot 14:00* staan.
 
@@ -190,7 +219,16 @@ Kijk eerst naar de zin bij de kamer op het Overzicht. Staat er bijvoorbeeld *War
 Ja, maar dat doet de beheerder in de instellingen. Vraag het gerust als een schema niet bij je dag past.
 
 **Waarom staat er ‘Raam lijkt open’, terwijl alles dicht is?**
-De kamer koelde ineens snel af, bijvoorbeeld door een deur die openstond. Na hooguit een half uur gaat de verwarming vanzelf weer verder. Wil je niet wachten, druk dan op **Boost**.
+De kamer koelde ineens snel af, bijvoorbeeld door een deur die openstond. Na hooguit een half uur gaat de verwarming vanzelf weer verder. Wil je niet wachten, druk dan op **Boost**. Gebeurt het te vaak? Vraag de beheerder om de temperatuurdaling voor open raam bij die kamer hoger te zetten.
+
+**Waarom slaat de ketel niet aan, terwijl een kamer koud is?**
+Waarschijnlijk omdat een kamer met open radiatoren (een kamer zonder slimme kranen) al warm genoeg is. Zolang die kamer op zijn comforttemperatuur is, blijft de ketel voor het hele huis uit, zodat niets te warm wordt. Zie [Kamers zonder slimme kranen](#kamers-zonder-slimme-kranen). Heb je haast? Gebruik de **Handmatige ruimte-override**.
+
+**Past het systeem mijn schema zelf aan?**
+Nee. Het leert hoe je huis zich gedraagt en kan in het maandagrapport een schematijd voorstellen, maar het verandert het schema nooit zelf.
+
+**Hoe lang duurt het voor het mijn huis kent?**
+De eerste dingen, zoals een open raam, werken na een paar uur. Op tijd opwarmen en de ketel op tijd uitzetten worden beter in de eerste weken. Tot die tijd gelden de standaardwaarden, dus je zit er niet slechter mee.
 
 **Moet ik de vakantiemodus na mijn vakantie zelf uitzetten?**
 Nee. Op de dag dat je terugkomt, volgt het huis weer het gewone schema, en de knop gaat uit zodra er iemand thuis is.

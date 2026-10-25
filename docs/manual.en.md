@@ -14,6 +14,8 @@ This is how it works:
 - **The boiler** only fires when at least one room should be warm and is still clearly too cold.
 - **Each room has a schedule**: the times when it should be warm there. Outside those times the room drops to a lower temperature.
 - **The system keeps an eye on what is going on**: is everyone out, is a window open, are you on holiday? Then it adjusts the temperature by itself.
+- **It learns your house.** Every room heats up and cools down in its own way. Smart Heating notices how, and uses that to start on time, to recognise an open window sooner and to switch the boiler off before the room gets too warm.
+- **Rooms without a smart valve are fine too.** While not every radiator has a smart valve yet, those rooms still take part, and they make sure the house doesn't get hotter than you want.
 
 So most of the time you don't have to do anything. If you want something different, there are a few buttons, such as **Boost** to heat a room right away.
 
@@ -100,7 +102,7 @@ Changing the schedule is done by the administrator in the settings.
 
 ### Warm on time
 
-A room starts warming up before the scheduled time, so it is warm when it should be. At first that is a bit more than an hour in advance. After that the system learns per room how long warming up really takes, also depending on how cold it is outside. You then see *Warming up* next to the room.
+A room starts warming up before the scheduled time, so it is warm when it should be. At first that is a bit more than an hour in advance. After that the system learns per room how long warming up really takes, also depending on how cold it is outside. You then see *Warming up* next to the room. More about this under [The system learns](#the-system-learns).
 
 ### What wins?
 
@@ -117,15 +119,42 @@ Sometimes several things apply at once. Then the highest one in this list wins:
 
 These things happen automatically. You don't need to do anything.
 
-- **Window open:** if a room suddenly cools down very quickly, the system assumes a window is open. The heating in that room then pauses for fifteen minutes to half an hour, so you are not heating the street.
+- **Window open:** if a room suddenly cools down faster than it normally does, the system assumes a window is open. The heating in that room then pauses for fifteen minutes to half an hour, so you are not heating the street. The system looks at the thermometer in the radiator valve for this, because that one usually sits close to the window and notices a draught first. What counts as "suddenly" is learned per room, see [The system learns](#the-system-learns).
 - **Nobody home:** when everyone has left, all rooms go to the lower temperature (16 °C). If you are away for more than two days, the house drops to frost protection (12 °C).
 - **Room of someone who is away:** a room can belong to certain people, for example a study. If they are all away, that room stays at the lower temperature, even if the schedule says otherwise. A Boost still works.
 - **On the way home:** if the administrator has set this up, the system notices you are on your way, for example when you get close to home. The house then starts warming up, so it is warm when you walk in.
 - **Floor heating:** floor heating is slow. A room with floor heating therefore starts a few hours before the scheduled time. While it warms up, the radiators in rooms not in use stay closed, so the heat goes to the floor.
-- **Rooms without smart valves yet:** a room marked *open radiators* asks for heat when it is cold, and stops the boiler as soon as it is warm enough, so the whole house is not heated past that room.
-- **Learning:** per room the system learns how much the temperature normally fluctuates (so an open window is recognised sooner), how far the room keeps warming after the boiler stops (so the boiler stops early enough), and how its thermometer differs from the valve's. In the Monday report it suggests schedule times if you often press Boost or turn the valve up around the same time outside the schedule. It never changes the schedule by itself.
+- **Rooms without smart valves yet:** these rooms ask for heat when they are cold and stop the boiler once they are warm enough. See [Rooms without smart valves](#rooms-without-smart-valves).
+- **A room that doesn't warm up:** if a room has been asking for heat for three quarters of an hour and has barely become any warmer, you get an alert. See [Alerts](#alerts-1).
 - **Valve switched off:** if a smart radiator valve is switched off, the system switches it back on.
-- **Weekly report:** every Monday at 08:00 you get a notification in Home Assistant (under the bell). It shows how much gas was used compared to last year, taking into account how cold it was, how many hours each room was heated, and whether there were any problems.
+- **Weekly report:** every Monday at 08:00 you get a notification in Home Assistant (under the bell). It shows how much gas was used compared to last year, taking into account how cold it was, how many hours each room was heated, and whether there were any problems. If the system noticed a habit of yours, the report also contains a suggestion for the schedule.
+
+## Rooms without smart valves
+
+Not every room has a smart valve yet. Say you are still waiting for the valves in the living area. The radiators there are open all the time (or you turn them by hand), so Smart Heating cannot close them.
+
+That causes a problem. The boiler is switched on through the Bosch EasyControl, and that thermostat sits in the living room. If another room, say the bedroom, asks for heat, the boiler keeps firing until the living room is warm as well. With all the radiators open, the living room is then much warmer than you wanted, up to 22 degrees.
+
+The administrator solves this by adding those rooms as a room with **open radiators**. Such a room needs a temperature sensor and follows its schedule like any other room. For the boiler it works like this:
+
+- **It asks for heat when it is cold.** When the room is more than 0.3 degrees below its comfort temperature, the boiler is asked to fire.
+- **It stops the boiler when it is warm enough.** As soon as the room reaches its comfort temperature, the boiler is switched off. That holds for every room: even if the bedroom is still cold, the boiler waits until the living room has cooled down a bit. So the house never gets warmer than that room is allowed to be.
+
+A few things to know:
+
+- **One sensor, one room.** If you only have one thermometer for the whole living area, add it as one room (for example *Living area*) instead of three rooms on the same thermometer. That works just as well and is easier to keep up.
+- **A cold bedroom has to wait sometimes.** While the living area is warm, the boiler stays off, even if another room is a bit too cold. That is the price of the open radiators. Two ways around it: close a radiator by hand, or use the **Manual room override**, which always gets the boiler going.
+- **When the valves are in,** the administrator switches *open radiators* off, adds the living rooms as ordinary rooms with their valves, and removes the combined room. The ceiling then goes away by itself, because every valve closes its own radiator.
+
+## The system learns
+
+Smart Heating starts with sensible standard values and then gets to know every room. This is done per room, remembered across restarts, and as long as there isn't enough data yet, the standard values simply apply. You don't have to do anything for it.
+
+- **How long warming up takes.** The system notes how fast a room warms up, and how cold it was outside. That way it knows how early to start before the schedule begins (see [Warm on time](#warm-on-time)).
+- **What counts as an open window.** Every room cools down a little differently: a room with a big window drops faster than a small bedroom. After about three hours of quiet readings, the system knows what is normal for a room and what is not. A room that normally barely changes recognises an open window sooner. The administrator's setting for the temperature drop is the maximum: the system can make the room more alert than that, never less.
+- **How far a room keeps warming up.** A radiator stays warm for a while after the boiler stops. The system measures how much further the room warms up, and switches the boiler off that much earlier. So the room comes to rest at its target instead of a bit above it, which saves gas. This takes at least three rounds of heating to learn, and the correction is never more than one degree.
+- **How the thermometers differ.** The thermometer in a radiator valve reads a different value than the separate thermometer in the middle of the room. The system compares the two while the radiator is off. If the separate thermometer ever goes quiet, it uses the valve's reading corrected by that difference, instead of being a bit off. If the administrator has set a correction by hand, that one is used.
+- **What you do by hand.** If you regularly press **Boost** or turn a valve up around the same time, outside the schedule, the system notices. When that has happened on at least three different days within four weeks, the Monday report says so, for example *you often ask for heat on Tue, Thu around 07:10, consider adding that to the schedule*. The system never changes the schedule by itself, that is up to you or the administrator.
 
 ## The buttons
 
@@ -133,7 +162,7 @@ All buttons are on the Overview, on the right-hand side. To use a button, tap **
 
 ### Boost: warm right now
 
-Is a room cold and you don't want to wait for the schedule? Press **Boost** for that room. The room goes straight to its comfort temperature and the boiler fires if needed. A Boost lasts one hour by default. After that the room goes back to its schedule by itself.
+Is a room cold and you don't want to wait for the schedule? Press **Boost** for that room. The room goes straight to its comfort temperature and the boiler fires if needed. One exception: if a room with open radiators (see [Rooms without smart valves](#rooms-without-smart-valves)) is already warm, the boiler stays off. The **Manual room override** does not have that limit. A Boost lasts one hour by default. After that the room goes back to its schedule by itself.
 
 To stop earlier, press **Cancel boost**. While it lasts, the room shows *Boost until 14:00*.
 
@@ -190,7 +219,16 @@ First look at the room's sentence on the Overview. If it says, for example, *War
 Yes, but the administrator does that in the settings. Just ask if a schedule doesn't fit your day.
 
 **Why does it say 'Window seems open' when everything is closed?**
-The room suddenly cooled down quickly, for example because a door was open. After at most half an hour the heating carries on by itself. Don't want to wait? Press **Boost**.
+The room suddenly cooled down quickly, for example because a door was open. After at most half an hour the heating carries on by itself. Don't want to wait? Press **Boost**. Does it happen too often? Ask the administrator to raise the open-window temperature drop for that room.
+
+**Why doesn't the boiler fire, even though a room is cold?**
+Probably because a room with open radiators (a room without smart valves) is already warm enough. As long as that room is at its comfort temperature, the boiler stays off for the whole house, so nothing gets too warm. See [Rooms without smart valves](#rooms-without-smart-valves). In a hurry? Use the **Manual room override**.
+
+**Does the system change my schedule by itself?**
+No. It learns how your house behaves, and can suggest a schedule time in the Monday report, but it never changes the schedule itself.
+
+**How long before it has learned my house?**
+The first things, such as an open window, work after a few hours. Warming up on time and switching the boiler off in time get better over the first few weeks. Until then the standard values apply, so you aren't worse off.
 
 **Do I have to switch vacation mode off myself after my holiday?**
 No. On the day you come back, the house follows its normal schedule again, and the switch turns off as soon as someone is home.
