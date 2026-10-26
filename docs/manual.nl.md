@@ -77,6 +77,7 @@ In de kolom *Wat gebeurt er* staat per kamer één zin. De tijden en temperature
 | Niemand thuis, op 16 graden gehouden | Iedereen is weg. Na twee dagen weg zakt dit naar 12 graden. |
 | Persoon van deze ruimte is weg, op 16 graden gehouden | Deze kamer hoort bij iemand die nu weg is, dus het schema wordt overgeslagen. De kamer warmt weer op als die persoon thuis of onderweg is. |
 | Wacht tot de vloerverwarming is opgewarmd, op 12 graden gehouden | De vloerverwarming warmt eerst op. Kamers die nu niet gebruikt worden, houden hun radiator zolang dicht. |
+| Warm genoeg, radiator dicht | De kamersensor meldt de doeltemperatuur of meer, dus de radiator gaat dicht, ook als de eigen sensor van de kraan het anders ziet (anders blijft die verwarmen zodra een andere kamer de boiler vraagt). Gaat weer open zodra de kamer iets is afgekoeld. |
 | Handmatig ingesteld op 22 graden, tot 17:00 | Iemand heeft de kraan zelf verdraaid. Die stand blijft tot 17:00, daarna neemt het schema het weer over. |
 | Vakantie tot za 16:20, op 12 graden gehouden | De vakantiemodus staat aan. De kamer blijft net boven het vriespunt tot die tijd en warmt dan op, zodat het aangenaam is als je terug bent. |
 

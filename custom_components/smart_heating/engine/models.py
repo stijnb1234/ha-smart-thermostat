@@ -208,7 +208,7 @@ class EngineInput:
 
 
 Reason = Literal[
-    "boost", "window", "vacation", "away", "occupant_away", "manual", "floor_first", "pre_heat", "schedule", "setback"
+    "boost", "window", "vacation", "away", "occupant_away", "manual", "floor_first", "satisfied", "pre_heat", "schedule", "setback"
 ]
 
 

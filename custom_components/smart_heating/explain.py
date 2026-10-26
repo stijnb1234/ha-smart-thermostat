@@ -56,7 +56,7 @@ def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanati
         end = decision.window_paused_until[room.name]
     elif reason == "vacation":
         end = vacation_release(room, inp)
-    elif reason in ("away", "occupant_away", "floor_first"):
+    elif reason in ("away", "occupant_away", "floor_first", "satisfied"):
         return Explanation(reason, target)
     else:
         change = _next_schedule_change(room, inp, inp.now)
@@ -81,7 +81,7 @@ def summarize(e: Explanation, now: datetime, lang: str = DEFAULT_LANGUAGE) -> st
     """One plain sentence for the dashboard; the reason sensor stays the machine value."""
     end = _when(e.next_change_at, now, lang) if e.next_change_at else None
     temp = _degrees(e.target, lang)
-    fixed = {"away", "occupant_away", "floor_first"}
+    fixed = {"away", "occupant_away", "floor_first", "satisfied"}
     if e.reason in fixed:
         return tr(lang, f"summary.{e.reason}", temp=temp)
     key = e.reason if end else f"{e.reason}_open"

@@ -76,6 +76,33 @@ def _floor_first(
             reasons[room.name] = "floor_first"
 
 
+def _close_satisfied(
+    inp: EngineInput,
+    trv_setpoints: dict[str, float],
+    reasons: dict[str, Reason],
+    room_temps: Mapping[str, float],
+    external: frozenset[str],
+) -> None:
+    """A Room at its target gets a closed valve, whatever the TRV's own sensor says.
+
+    Only for a Room read by its external sensor: otherwise the room temperature is the TRV's
+    own reading and it already agrees with itself. The TRV regulates on its own (or a stale
+    pushed) reading, so it can open while the room is warm enough and heat it further when another Room calls the boiler. Frost-hold shuts it; it
+    opens again once the room has cooled more than the demand hysteresis below target.
+    """
+    for room in inp.config.rooms:
+        name, temp = room.name, room_temps.get(room.name)
+        if temp is None or name not in external or room.floor_heating or room.open_radiators:
+            continue
+        target = trv_setpoints[name]
+        if target <= room.frost_hold + EPSILON or reasons[name] in ("boost", "window", "manual"):
+            continue
+        closed = abs(inp.last_commands.trv_setpoints.get(name, target) - room.frost_hold) <= EPSILON
+        threshold = target - (room_hysteresis(inp.config, room) if closed else 0.0)
+        if temp >= threshold - EPSILON:
+            trv_setpoints[name], reasons[name] = room.frost_hold, "satisfied"
+
+
 def _open_radiators_capping(inp: EngineInput, room_temps: Mapping[str, float]) -> frozenset[str]:
     """Open-radiator Rooms that stop every boiler call: from reaching comfort until they have
     cooled more than the demand hysteresis below it, so the call does not flap at the edge."""
@@ -101,6 +128,7 @@ def decide(inp: EngineInput) -> Decision:
     """
     room_temps: dict[str, float] = {}
     pushes: dict[str, float] = {}
+    external_rooms: set[str] = set()
     for room in inp.config.rooms:
         temp, external = select_temperature(
             room, inp.external_temps, inp.trv_temps, inp.now, inp.config.sensors, inp.learned_offsets
@@ -108,6 +136,8 @@ def decide(inp: EngineInput) -> Decision:
         if temp is None:
             continue
         room_temps[room.name] = temp
+        if external:
+            external_rooms.add(room.name)
         if external and not (room.floor_heating or room.open_radiators) and _needs_push(room.name, temp, inp):
             pushes[room.name] = temp
     boosted = boosted_rooms(inp.boosts, inp.now)
@@ -117,6 +147,7 @@ def decide(inp: EngineInput) -> Decision:
     for room in inp.config.rooms:
         trv_setpoints[room.name], reasons[room.name] = _target(room, inp, boosted, paused)
     _floor_first(inp, trv_setpoints, reasons, room_temps)
+    _close_satisfied(inp, trv_setpoints, reasons, room_temps, frozenset(external_rooms))
     writes = trv_writes(inp, trv_setpoints)
     trv = check_trvs(inp, writes)
     # In Room terms: a corrected TRV's hand-set value minus the correction it was given.

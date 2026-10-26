@@ -64,6 +64,7 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "| Nobody home, kept at 16 degrees | Nobody is home. Long absence: just above freezing. |\n"
             "| Room's person is away, kept at 16 degrees | The person this room is for is away: schedule skipped. Warms up when they are back or on their way. |\n"
             "| Waiting for the floor heating to warm up first, kept at 12 degrees | The slow floor heating warms up first. Idle radiators stay closed meanwhile. |\n"
+            "| Warm enough, radiator closed | The room sensor reads the target or higher, so the radiator is shut even if the valve's own sensor disagrees. Opens again when the room cools a little. |\n"
             "| Set by hand to 22 degrees, until 17:00 | You turned the valve yourself. Left alone until the room's target changes. The boiler is called if the room is colder than you set. |\n"
             "| Vacation until Sat 16:20, kept at 12 degrees | Vacation mode: just above freezing. Each room starts warming up in time for your return. |\n\n"
             "Strongest rule wins: Boost, open window, Vacation, nobody home, schedule.",
@@ -136,6 +137,7 @@ HELP: dict[str, list[tuple[str, str]]] = {
             "| Niemand thuis, op 16 graden gehouden | Niemand is thuis. Lange afwezigheid: net boven vorst. |\n"
             "| Persoon van deze ruimte is weg, op 16 graden gehouden | De persoon voor wie deze ruimte is, is weg: schema overgeslagen. Warmt op als diegene terug of onderweg is. |\n"
             "| Wacht tot de vloerverwarming is opgewarmd, op 12 graden gehouden | De trage vloerverwarming warmt eerst op. Ongebruikte radiatoren blijven intussen dicht. |\n"
+            "| Warm genoeg, radiator dicht | De kamersensor meldt de doeltemperatuur of meer, dus de radiator gaat dicht, ook als de eigen sensor van de kraan het anders ziet. Gaat weer open als de kamer iets afkoelt. |\n"
             "| Handmatig ingesteld op 22 graden, tot 17:00 | Je draaide de kraan zelf. Met rust gelaten tot het doel van de ruimte verandert. De boiler wordt gevraagd als de ruimte kouder is dan jouw instelling. |\n"
             "| Vakantie tot za 16:20, op 12 graden gehouden | Vakantiemodus: net boven vorst. Elke ruimte begint op tijd op te warmen voor je terugkomst. |\n\n"
             "Sterkste regel wint: Boost, open raam, Vakantie, niemand thuis, schema.",
@@ -234,6 +236,7 @@ CATALOG: dict[str, dict[str, str]] = {
         "summary.vacation_open": "Vacation, kept at {temp}",
         "summary.away": "Nobody home, kept at {temp}",
         "summary.occupant_away": "Room's person is away, kept at {temp}",
+        "summary.satisfied": "Warm enough, radiator closed",
         "summary.floor_first": "Waiting for the floor heating to warm up first, kept at {temp}",
         "summary.manual": "Set by hand to {temp}, until {end}",
         "summary.manual_open": "Set by hand to {temp}",
@@ -377,6 +380,7 @@ CATALOG: dict[str, dict[str, str]] = {
         "summary.vacation_open": "Vakantie, op {temp} gehouden",
         "summary.away": "Niemand thuis, op {temp} gehouden",
         "summary.occupant_away": "Persoon van deze ruimte is weg, op {temp} gehouden",
+        "summary.satisfied": "Warm genoeg, radiator dicht",
         "summary.floor_first": "Wacht tot de vloerverwarming is opgewarmd, op {temp} gehouden",
         "summary.manual": "Handmatig ingesteld op {temp}, tot {end}",
         "summary.manual_open": "Handmatig ingesteld op {temp}",
