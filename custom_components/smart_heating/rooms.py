@@ -6,7 +6,7 @@ No Home Assistant imports. A stored room is a JSON-serialisable dict:
   [presence_entities: person/tracker/switch ids; room is skipped by the
   schedule while all are away], [comfort], [setback], [frost_hold],
   [trv_offset], [lead_time_minutes], [window_detection], [window_drop],
-  [window_pause_minutes], [compensate_trv: correct the setpoint of a TRV that takes no external temperature],
+  [window_pause_minutes], [demand_hysteresis: own call margin in degC; 0 or absent follows the global one], [compensate_trv: correct the setpoint of a TRV that takes no external temperature],
   [schedule: list of {days: [0..6], start: "HH:MM", end: "HH:MM"}]
 A `manual` Room has no Zigbee TRV (floor heating, dumb TRV): the engine does not
 control it; it only matters through the Manual-room override.
@@ -41,6 +41,7 @@ NUMERIC_LIMITS = (
     ("trv_offset", -5.0, 5.0),
     ("lead_time_minutes", 0.0, 480.0),
     ("window_drop", 0.5, 10.0),
+    ("demand_hysteresis", 0.0, 2.0),
     ("window_pause_minutes", 15.0, 30.0),
 )
 
@@ -321,6 +322,7 @@ def to_engine_rooms(rooms: Sequence[Mapping[str, Any]]) -> tuple[RoomConfig, ...
             window_detection=bool(r.get("window_detection", defaults.window_detection)),
             compensate_trv=bool(r.get("compensate_trv", defaults.compensate_trv)),
             window_drop=float(r.get("window_drop", defaults.window_drop)),
+            demand_hysteresis=float(r["demand_hysteresis"]) if r.get("demand_hysteresis") else None,
             window_pause=timedelta(minutes=float(r["window_pause_minutes"]))
             if "window_pause_minutes" in r
             else defaults.window_pause,

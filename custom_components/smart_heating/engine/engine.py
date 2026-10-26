@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from datetime import datetime
 
 from .alerts import compute_alerts
-from .boiler import boiler_setpoint, demand_rooms
+from .boiler import boiler_setpoint, demand_rooms, room_hysteresis
 from .compensation import trv_writes
 from .models import EPSILON, Decision, EngineInput, Reason, RoomConfig
 from .overrides import boosted_rooms, manual_override_active
@@ -65,7 +65,7 @@ def _floor_first(
         room.floor_heating
         and reasons[room.name] == "pre_heat"
         and room.name in room_temps
-        and room_temps[room.name] < trv_setpoints[room.name] - inp.config.demand_hysteresis
+        and room_temps[room.name] < trv_setpoints[room.name] - room_hysteresis(inp.config, room)
         for room in inp.config.rooms
     )
     if not busy:
@@ -85,7 +85,7 @@ def _open_radiators_capping(inp: EngineInput, room_temps: Mapping[str, float]) -
         temp = room_temps.get(room.name)
         if not room.open_radiators or temp is None:
             continue
-        threshold = room.comfort - (inp.config.demand_hysteresis if room.name in before else 0.0)
+        threshold = room.comfort - (room_hysteresis(inp.config, room) if room.name in before else 0.0)
         if temp >= threshold - EPSILON:
             capping.add(room.name)
     return frozenset(capping)
@@ -125,7 +125,7 @@ def decide(inp: EngineInput) -> Decision:
     }
     for room_name in hand_set:
         reasons[room_name] = "manual"
-    calling = demand_rooms(inp.config, trv_setpoints, room_temps, hand_set, inp.coast)
+    calling = demand_rooms(inp.config, trv_setpoints, room_temps, hand_set, inp.coast, inp.settling)
     capping = _open_radiators_capping(inp, room_temps)
     if capping:
         calling = ()  # a room with open radiators is warm enough: stop heating the whole house

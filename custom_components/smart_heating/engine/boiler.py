@@ -5,10 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime, timedelta
 
-from .models import EPSILON, EngineConfig, EngineInput, WriteResult
+from .models import EPSILON, EngineConfig, EngineInput, RoomConfig, WriteResult
 
 # Observed vs held setpoints closer than this count as equal (thermostat resolution).
 _DRIFT_TOLERANCE = 0.05
+# A settling Room this much below its margin is genuinely cold (target raised, window): it calls anyway.
+SETTLE_RELEASE = 0.5
 
 
 def demand_rooms(
@@ -17,6 +19,7 @@ def demand_rooms(
     room_temps: Mapping[str, float],
     hand_set: Mapping[str, float] | None = None,
     coast: Mapping[str, float] | None = None,
+    settling: frozenset[str] = frozenset(),
 ) -> tuple[str, ...]:
     """Rooms heating to comfort that are colder than target by more than the hysteresis.
 
@@ -26,6 +29,9 @@ def demand_rooms(
     when the hand-set value is above its setback, as that shows someone wants it warm.
     A Room that is learned to keep rising `coast` K after the call ends widens its
     hysteresis by that much, so the call ends early enough not to overshoot.
+    A Room in `settling` (its call just ended, the radiator is still giving off heat) does not call
+    again unless it is more than SETTLE_RELEASE colder than its margin allows: a restart then would
+    only add heat on top of the heat still coming.
     """
     wanted = wanted_targets(config, trv_setpoints, hand_set)
     margins = demand_margins(config, coast)
@@ -35,6 +41,10 @@ def demand_rooms(
         if room.name in wanted
         and room.name in room_temps
         and room_temps[room.name] < wanted[room.name] - margins[room.name]
+        and not (
+            room.name in settling
+            and room_temps[room.name] >= wanted[room.name] - margins[room.name] - SETTLE_RELEASE
+        )
     )
 
 
@@ -58,7 +68,12 @@ def wanted_targets(
 def demand_margins(config: EngineConfig, coast: Mapping[str, float] | None = None) -> dict[str, float]:
     """How far below its target each Room may be before it calls: the hysteresis, widened by coast."""
     coast = coast or {}
-    return {r.name: max(config.demand_hysteresis, coast.get(r.name, 0.0)) for r in config.rooms}
+    return {r.name: max(room_hysteresis(config, r), coast.get(r.name, 0.0)) for r in config.rooms}
+
+
+def room_hysteresis(config: EngineConfig, room: RoomConfig) -> float:
+    """The Room's own demand hysteresis, else the global one."""
+    return config.demand_hysteresis if room.demand_hysteresis is None else room.demand_hysteresis
 
 
 def has_demand(

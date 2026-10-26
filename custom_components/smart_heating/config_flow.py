@@ -198,6 +198,7 @@ def _room_schema(room: dict[str, Any] | None, default_preset: str = "none") -> v
             opt("compensate_trv", engine_defaults.compensate_trv): selector.BooleanSelector(),
             opt("window_detection", engine_defaults.window_detection): selector.BooleanSelector(),
             opt("window_drop", engine_defaults.window_drop): _number(0.5, 10, 0.1, "°C"),
+            opt("demand_hysteresis", 0): _number(0, 2, 0.1, "°C"),
             opt(
                 "window_pause_minutes", engine_defaults.window_pause.total_seconds() / 60
             ): _number(15, 30, 1, "min"),

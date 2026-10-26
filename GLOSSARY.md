@@ -40,7 +40,8 @@ is colder than its target by more than the **demand hysteresis**, or while a Man
 runs.
 
 **Demand hysteresis**: How far below its target a Room must be before it calls for heat, widened
-by its learned **coast**.
+by its learned **coast**. A Room can have its own hysteresis (for a coarse sensor); otherwise the
+global one applies.
 
 **Manual hold**: A setpoint changed by hand on the boiler thermostat, respected for a while before
 Smart Heating writes again. If the hand-set value is what Smart Heating wants anyway when the hold
@@ -87,7 +88,8 @@ time. The **lead time** is the Room's current shortfall (comfort minus its tempe
 its learned heating rate at the current outdoor temperature; it is frozen once pre-heat starts.
 
 **Coast**: How far a Room keeps warming after its call ends; learned per Room so the call can end
-earlier.
+earlier. While a Room is still within its coast (**settling**: no new peak yet) it does not call again,
+unless it is clearly colder than its margin allows.
 
 **Open-window detection**: Treating a sharp temperature drop as an open window and pausing the
 Room at frost-hold for a while. While a radiator is hot or **cooling down** after heating, the TRV's
