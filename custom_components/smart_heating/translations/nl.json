@@ -73,6 +73,7 @@
           "compensate_trv": "Instelwaarde van de kraan corrigeren met de kamersensor (alleen voor kranen die geen externe temperatuur aannemen)",
           "window_detection": "Open-raamdetectie",
           "window_drop": "Open-raamdaling (maximum; per ruimte lager geleerd)",
+          "demand_hysteresis": "Aanvraagmarge van de ruimte (0 = algemene instelling; blijf onder de sensorstap, bijv. onder 0,5 bij een 0,5°-sensor)",
           "window_pause_minutes": "Pauze bij open raam (15-30 min)"
         }
       },
@@ -104,6 +105,7 @@
           "compensate_trv": "Instelwaarde van de kraan corrigeren met de kamersensor (alleen voor kranen die geen externe temperatuur aannemen)",
           "window_detection": "Open-raamdetectie",
           "window_drop": "Open-raamdaling (maximum; per ruimte lager geleerd)",
+          "demand_hysteresis": "Aanvraagmarge van de ruimte (0 = algemene instelling; blijf onder de sensorstap, bijv. onder 0,5 bij een 0,5°-sensor)",
           "window_pause_minutes": "Pauze bij open raam (15-30 min)"
         }
       },

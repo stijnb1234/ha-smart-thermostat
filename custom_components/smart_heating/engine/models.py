@@ -58,6 +58,9 @@ class RoomConfig:
     # Correct the TRV setpoint for its sensor's difference with the room sensor, when the TRV
     # cannot take an external temperature (see compensation.py).
     compensate_trv: bool = True
+    # Own demand hysteresis (degC) for a Room that needs another margin than the rest;
+    # None follows EngineConfig.demand_hysteresis.
+    demand_hysteresis: float | None = None
     # Stable id for entities and storage (the engine itself keys Rooms by name).
     id: str = field(default="", compare=False)
 
@@ -194,6 +197,9 @@ class EngineInput:
     # external-minus-TRV sensor offset. Missing while there is too little data.
     window_thresholds: Mapping[str, float] = field(default_factory=dict)
     coast: Mapping[str, float] = field(default_factory=dict)
+    # Rooms whose call just ended and that are still warming from the radiator's stored heat:
+    # they do not call again until the temperature has peaked (see CoastTracker).
+    settling: frozenset[str] = frozenset()
     learned_offsets: Mapping[str, float] = field(default_factory=dict)
     # Rooms that have called for heat for a long time without warming up.
     stalled: frozenset[str] = frozenset()

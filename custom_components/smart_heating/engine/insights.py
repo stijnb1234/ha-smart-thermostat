@@ -84,7 +84,9 @@ class RoomInsights:
         samples = self._coasts.get(room)
         if not samples or len(samples) < MIN_COAST_SAMPLES:
             return None
-        return _clamp(median(samples), 0.0, MAX_COAST)
+        # Upper quartile, not the median: short top-up calls leave little heat behind, a long
+        # morning ramp a lot, and ending that late overshoots while ending early only costs minutes.
+        return _clamp(_percentile(list(samples), 0.75), 0.0, MAX_COAST)
 
     # --- external vs TRV sensor ----------------------------------------------------
     def record_offset(self, room: str, external_minus_trv: float) -> None:

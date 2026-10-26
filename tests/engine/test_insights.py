@@ -185,3 +185,40 @@ def pytest_approx(value):
     import pytest
 
     return pytest.approx(value)
+
+
+# --- settling: no restart while the radiator's stored heat is still arriving ----------------
+
+def test_settling_room_does_not_call_again_until_it_is_really_cold():
+    room = RoomConfig(name="bed", comfort=19.5)
+    cfg = EngineConfig(rooms=(room,), boiler_low=10.0, boiler_high=22.0)
+    targets = {"bed": 19.5}
+    settling = frozenset({"bed"})
+    assert demand_rooms(cfg, targets, {"bed": 19.1}) == ("bed",)
+    assert demand_rooms(cfg, targets, {"bed": 19.1}, settling=settling) == ()
+    assert demand_rooms(cfg, targets, {"bed": 18.5}, settling=settling) == ("bed",)  # genuinely cold
+
+
+def test_coast_tracker_settles_until_the_peak_plateaus():
+    t = CoastTracker()
+    t.observe("bed", minutes(0), 19.0, calling=True)
+    t.observe("bed", minutes(1), 19.0, calling=False)
+    assert t.settling() == {"bed"}
+    t.observe("bed", minutes(10), 19.5, calling=False)  # 0.5 K sensor step, no fall ever shows
+    assert t.settling() == {"bed"}
+    assert t.observe("bed", minutes(31), 19.5, calling=False) == pytest_approx(0.5)
+    assert t.settling() == frozenset()
+
+
+def test_room_hysteresis_overrides_the_global_one():
+    room = RoomConfig(name="bed", comfort=19.5, demand_hysteresis=0.5)
+    cfg = EngineConfig(rooms=(room,), boiler_low=10.0, boiler_high=22.0)
+    assert demand_rooms(cfg, {"bed": 19.5}, {"bed": 19.1}) == ()
+    assert demand_rooms(cfg, {"bed": 19.5}, {"bed": 18.9}) == ("bed",)
+
+
+def test_coast_follows_the_upper_quartile():
+    ins = RoomInsights()
+    for rise in (0.1, 0.1, 0.1, 0.1, 0.6, 0.6, 0.7, 0.7):
+        ins.record_coast("bed", rise)
+    assert ins.coast("bed") == pytest_approx(0.7)

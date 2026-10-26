@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 
 COAST_MAX_WAIT = timedelta(minutes=60)
 COAST_FALL = 0.1  # K below the peak that ends the coast observation
+# No new peak for this long ends it too: a sensor that moves in 0.5 K steps never shows a fall.
+COAST_PLATEAU = timedelta(minutes=20)
 STALL_AFTER = timedelta(minutes=45)
 STALL_RISE = 0.3  # K of warming that counts as progress
 
@@ -15,8 +17,8 @@ class CoastTracker:
 
     def __init__(self) -> None:
         self._calling: dict[str, bool] = {}
-        # room -> (stopped_at, temp when it stopped, peak so far)
-        self._stopped: dict[str, tuple[datetime, float, float]] = {}
+        # room -> (stopped_at, temp when it stopped, peak so far, when the peak was reached)
+        self._stopped: dict[str, tuple[datetime, float, float, datetime]] = {}
 
     def observe(
         self, room: str, now: datetime, temp: float | None, calling: bool, valid: bool = True
@@ -32,18 +34,23 @@ class CoastTracker:
             self._stopped.pop(room, None)
             return None
         if was_calling:
-            self._stopped[room] = (now, temp, temp)
+            self._stopped[room] = (now, temp, temp, now)
             return None
         stopped = self._stopped.get(room)
         if stopped is None:
             return None
-        at, start, peak = stopped
-        peak = max(peak, temp)
-        if temp < peak - COAST_FALL or now - at >= COAST_MAX_WAIT:
+        at, start, peak, peaked_at = stopped
+        if temp > peak:
+            peak, peaked_at = temp, now
+        if temp < peak - COAST_FALL or now - peaked_at >= COAST_PLATEAU or now - at >= COAST_MAX_WAIT:
             del self._stopped[room]
             return peak - start
-        self._stopped[room] = (at, start, peak)
+        self._stopped[room] = (at, start, peak, peaked_at)
         return None
+
+    def settling(self) -> frozenset[str]:
+        """Rooms whose call ended and whose temperature has not peaked yet."""
+        return frozenset(self._stopped)
 
 
 class StallTracker:

@@ -73,6 +73,7 @@
           "compensate_trv": "Correct the valve setpoint with the room sensor (only for valves that cannot take an external temperature)",
           "window_detection": "Open-window detection",
           "window_drop": "Open-window drop (maximum; learned lower per room)",
+          "demand_hysteresis": "Room call margin (0 = global setting; keep below the sensor step, e.g. under 0.5 for a 0.5° sensor)",
           "window_pause_minutes": "Open-window pause (15-30 min)"
         }
       },
@@ -104,6 +105,7 @@
           "compensate_trv": "Correct the valve setpoint with the room sensor (only for valves that cannot take an external temperature)",
           "window_detection": "Open-window detection",
           "window_drop": "Open-window drop (maximum; learned lower per room)",
+          "demand_hysteresis": "Room call margin (0 = global setting; keep below the sensor step, e.g. under 0.5 for a 0.5° sensor)",
           "window_pause_minutes": "Open-window pause (15-30 min)"
         }
       },

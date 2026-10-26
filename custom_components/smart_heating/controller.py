@@ -217,6 +217,7 @@ class Controller:
                 if (t := self.insights.window_threshold(r.name, r.window_drop)) is not None
             },
             coast={r.name: c for r in rooms if (c := self.insights.coast(r.name)) is not None},
+            settling=self._coast.settling(),
             learned_offsets=offsets,
             stalled=self._stall.stalled(snap.now),
             trv_without_external=snap.trv_without_external,
