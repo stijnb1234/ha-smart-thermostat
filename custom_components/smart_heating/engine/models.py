@@ -234,6 +234,9 @@ class Decision:
     window_paused_until: Mapping[str, datetime] = field(default_factory=dict)
     # Rooms whose TRV was set by hand, with the setpoint it holds (Room -> degC).
     hand_set: Mapping[str, float] = field(default_factory=dict)
+    # Rooms with a closed valve because they reached their target (Room -> that target; the
+    # TRV setpoint itself is the frost hold).
+    satisfied_targets: Mapping[str, float] = field(default_factory=dict)
     # Rooms whose unmet demand calls for the boiler (manual override not included).
     demand_rooms: tuple[str, ...] = ()
     # Open-radiator Rooms warm enough to stop every boiler call (carried back via Commands).

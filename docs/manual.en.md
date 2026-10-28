@@ -77,7 +77,7 @@ The *What is happening* column has one sentence per room. The times and temperat
 | Nobody home, kept at 16 degrees | Everyone is out. After two days away this drops to 12 degrees. |
 | Room's person is away, kept at 16 degrees | This room belongs to someone who is away right now, so its schedule is skipped. It warms up again once that person is home or on their way. |
 | Waiting for the floor heating to warm up first, kept at 12 degrees | The floor heating is warming up first. Rooms not in use keep their radiator closed meanwhile. |
-| Warm enough, radiator closed | The room sensor reads the target or higher, so the radiator is shut even if the valve's own sensor disagrees (it would otherwise keep heating while another room calls the boiler). It opens again once the room has cooled a little. |
+| Reached 19.5 degrees, radiator closed | The room sensor reads the target or higher, so the radiator is shut even if the valve's own sensor disagrees (it would otherwise keep heating while another room calls the boiler). It opens again once the room has cooled a little. The *Aiming for* column keeps showing the real target (19.5 here), not the valve setting. A room without a room sensor never shows this sentence: its valve closes itself when the room is warm, and the sentence keeps showing the schedule, for example *Warm until 17:00*. |
 | Set by hand to 22 degrees, until 17:00 | Someone turned the valve by hand. That setting stays until 17:00, then the schedule takes over again. |
 | Vacation until Sat 16:20, kept at 12 degrees | Vacation mode is on. The room is kept just above freezing until that time, then warms up so it is comfortable when you are back. |
 

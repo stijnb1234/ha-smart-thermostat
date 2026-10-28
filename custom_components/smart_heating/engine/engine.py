@@ -82,14 +82,16 @@ def _close_satisfied(
     reasons: dict[str, Reason],
     room_temps: Mapping[str, float],
     external: frozenset[str],
-) -> None:
+) -> dict[str, float]:
     """A Room at its target gets a closed valve, whatever the TRV's own sensor says.
 
     Only for a Room read by its external sensor: otherwise the room temperature is the TRV's
     own reading and it already agrees with itself. The TRV regulates on its own (or a stale
     pushed) reading, so it can open while the room is warm enough and heat it further when another Room calls the boiler. Frost-hold shuts it; it
     opens again once the room has cooled more than the demand hysteresis below target.
+    Returns each closed Room's real target, which the frost-hold setpoint hides.
     """
+    reached: dict[str, float] = {}
     for room in inp.config.rooms:
         name, temp = room.name, room_temps.get(room.name)
         if temp is None or name not in external or room.floor_heating or room.open_radiators:
@@ -100,7 +102,9 @@ def _close_satisfied(
         closed = abs(inp.last_commands.trv_setpoints.get(name, target) - room.frost_hold) <= EPSILON
         threshold = target - (room_hysteresis(inp.config, room) if closed else 0.0)
         if temp >= threshold - EPSILON:
+            reached[name] = target
             trv_setpoints[name], reasons[name] = room.frost_hold, "satisfied"
+    return reached
 
 
 def _open_radiators_capping(inp: EngineInput, room_temps: Mapping[str, float]) -> frozenset[str]:
@@ -147,7 +151,7 @@ def decide(inp: EngineInput) -> Decision:
     for room in inp.config.rooms:
         trv_setpoints[room.name], reasons[room.name] = _target(room, inp, boosted, paused)
     _floor_first(inp, trv_setpoints, reasons, room_temps)
-    _close_satisfied(inp, trv_setpoints, reasons, room_temps, frozenset(external_rooms))
+    satisfied = _close_satisfied(inp, trv_setpoints, reasons, room_temps, frozenset(external_rooms))
     writes = trv_writes(inp, trv_setpoints)
     trv = check_trvs(inp, writes)
     # In Room terms: a corrected TRV's hand-set value minus the correction it was given.
@@ -179,6 +183,7 @@ def decide(inp: EngineInput) -> Decision:
         window_paused_until=paused,
         demand_rooms=calling,
         hand_set=hand_set,
+        satisfied_targets=satisfied,
         open_radiators_capping=capping,
         trv_writes=writes,
     )

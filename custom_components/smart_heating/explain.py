@@ -47,6 +47,7 @@ def _next_schedule_change(room: RoomConfig, inp: EngineInput, after: datetime) -
 
 def explain(room: RoomConfig, inp: EngineInput, decision: Decision) -> Explanation:
     target = decision.hand_set.get(room.name, decision.trv_setpoints[room.name])
+    target = decision.satisfied_targets.get(room.name, target)
     reason = decision.reasons[room.name]
     end: datetime | None
     if reason == "boost":

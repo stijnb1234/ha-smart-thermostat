@@ -58,7 +58,8 @@ class RoomClimate(CoordinatorEntity[SmartHeatingCoordinator], ClimateEntity):
         data = self.coordinator.data
         if not data:
             return None
-        return data.decision.hand_set.get(self._room, data.decision.trv_setpoints.get(self._room))
+        d = data.decision
+        return d.hand_set.get(self._room, d.satisfied_targets.get(self._room, d.trv_setpoints.get(self._room)))
 
     async def async_set_temperature(self, **kwargs) -> None:
         raise ServiceValidationError(tr(self.coordinator.lang, "climate.set_refused"))

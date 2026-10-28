@@ -41,3 +41,7 @@ def test_vacation_and_away():
     assert summarize(Explanation("away", 16.0), NOW) == "Nobody home, kept at 16 degrees"
     assert summarize(Explanation("away", 16.5), NOW) == "Nobody home, kept at 16.5 degrees"
 
+
+
+def test_satisfied_room_names_the_target_it_reached():
+    assert summarize(Explanation("satisfied", 19.5), NOW) == "Reached 19.5 degrees, radiator closed"

@@ -37,6 +37,14 @@ def test_room_at_target_closes_its_valve(clock):
     assert (d.trv_setpoints["study"], d.reasons["study"]) == (12.0, "satisfied")
 
 
+def test_closed_room_still_reports_its_real_target(clock):
+    clock.advance(hours=12)
+
+    d = decide(_input(clock, 20.0))
+
+    assert d.satisfied_targets == {"study": 20.0}
+
+
 def test_room_below_target_keeps_heating(clock):
     clock.advance(hours=12)
 
